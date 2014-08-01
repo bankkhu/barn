@@ -103,8 +103,8 @@ ship_candidates(std::vector<std::string> candidates,
                      const BarnConf& barn_conf);
 
 void handle_failure_in_sync_round(BarnConf barn_conf, BarnError error);
-
-void execute_single_sync_round(BarnConf barn_conf, FileNameList file_name_list);
+void handle_failure_in_ship_round(BarnError error);
+void handle_success_in_ship_round(BarnConf barn_conf, ShipStatistics ship_statistics);
 
 void barn_agent_main(const BarnConf& barn_conf);
 

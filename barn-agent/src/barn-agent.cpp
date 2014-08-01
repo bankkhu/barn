@@ -56,6 +56,9 @@ Validation<FileNameList> query_candidates(const BarnConf& barn_conf) {
 
 Validation<ShipStatistics>
 ship_candidates(vector<string> candidates, const BarnConf& barn_conf) {
+  send_report(barn_conf.monitor_port,
+    Report(barn_conf.service_name, barn_conf.category, FilesToShip,
+    candidates.size()));
 
   const int candidates_size = candidates.size();
 
@@ -140,18 +143,23 @@ bool wait_for_source_change(const BarnConf& barn_conf)  {
  */
 void barn_agent_main(const BarnConf& barn_conf) {
   while(true) {
-    fold(query_candidates(barn_conf),
-      [&](FileNameList file_name_list) { execute_single_sync_round(barn_conf, file_name_list); },
+    fold(
+      query_candidates(barn_conf),
+      [&](FileNameList file_name_list) {
+        fold(
+          ship_candidates(file_name_list, barn_conf),
+          [&](ShipStatistics ship_statistics) { handle_success_in_ship_round(barn_conf, ship_statistics); },
+          [&](BarnError error) { handle_failure_in_ship_round(error); }
+         );
+      },
       [&](BarnError error) { handle_failure_in_sync_round(barn_conf, error); }
     );
   }
 }
 
-/*
- * error handler in case of an error on a sync round.
- */
+
 void handle_failure_in_sync_round(const BarnConf barn_conf, BarnError error) {
-  cout << "Error:" << error << endl;
+  cout << "Syncing Error:" << error << endl;
 
   send_report(barn_conf.monitor_port,
     Report(barn_conf.service_name, barn_conf.category, FailedToGetSyncList, 1));
@@ -159,40 +167,32 @@ void handle_failure_in_sync_round(const BarnConf barn_conf, BarnError error) {
   sleep_it();
 }
 
-void execute_single_sync_round(const BarnConf barn_conf, FileNameList file_name_list) {
+void handle_failure_in_ship_round(BarnError error) {
+  cout << "Shippment Error:" << error << endl;
+  // On error, sleep to prevent error-spins
+  sleep_it();
+}
+
+void handle_success_in_ship_round(BarnConf barn_conf, ShipStatistics ship_statistics) {
+
+
+  // On success report statistics to local barn-agent in monitor mode
   send_report(barn_conf.monitor_port,
-    Report(barn_conf.service_name, barn_conf.category, FilesToShip,
-    file_name_list.size()));
+    Report(barn_conf.service_name, barn_conf.category, LostDuringShip,
+      ship_statistics.num_lost_during_ship));
 
-  // Ship candidates and run success and failrue handlers accordingly
-  fold(ship_candidates(file_name_list, barn_conf),
-    [&](ShipStatistics ship_statistics) {
+  send_report(barn_conf.monitor_port,
+    Report(barn_conf.service_name, barn_conf.category, RotatedDuringShip,
+      ship_statistics.num_rotated_during_ship));
 
-      // On success report statistics to local barn-agent in monitor mode
-      send_report(barn_conf.monitor_port,
-        Report(barn_conf.service_name, barn_conf.category, LostDuringShip,
-          ship_statistics.num_lost_during_ship));
-
-      send_report(barn_conf.monitor_port,
-        Report(barn_conf.service_name, barn_conf.category, RotatedDuringShip,
-          ship_statistics.num_rotated_during_ship));
-
-      // If no file is shipped, wait for a change on directory.
-      // If any file is shipped, check again for change to
-      // make sure in the mean time no new file is generated.
-      // TODO after using inotify API directly, there is no need for this
-      //   as the change notifications will be waiting in the inotify fd
-      if (ship_statistics.num_shipped)
-        sleep_it();
-      else
-        wait_for_source_change(barn_conf);
-    },
-    [&](BarnError error) {
-
-      // On error, sleep to prevent error-spins
-      cout << "Error:" << error << endl;
-      sleep_it();
-    }
-  );
+  // If no file is shipped, wait for a change on directory.
+  // If any file is shipped, sleep, then check again for change to
+  // make sure in the mean time no new file is generated.
+  // TODO after using inotify API directly, there is no need for this
+  //   as the change notifications will be waiting in the inotify fd
+  if (ship_statistics.num_shipped)
+    sleep_it();
+  else
+    wait_for_source_change(barn_conf);
 }
 
