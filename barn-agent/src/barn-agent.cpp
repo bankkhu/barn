@@ -83,7 +83,7 @@ ship_candidates(vector<string> candidates, const BarnConf& barn_conf) {
         cout << "FATAL: Couldn't ship log since it got rotated in the meantime" << endl;
         num_lost_during_ship += 1;
       } else
-        return BarnError("ERROR: Coudln't ship log possibly due to a network error");
+        return BarnError("ERROR: Couldn't ship log possibly due to a network error");
     }
   }
 
@@ -98,8 +98,13 @@ ship_candidates(vector<string> candidates, const BarnConf& barn_conf) {
                       , num_lost_during_ship);
 }
 
-bool sleep_it(const BarnConf& barn_conf)  {
-  cout << "Sleeping..." << endl;
+void sleep_it()  {
+  cout << "Sleeping for 5 seconds..." << endl;
+  sleep(5);
+}
+
+bool wait_for_source_change(const BarnConf& barn_conf)  {
+  cout << "Waiting for directory change..." << endl;
 
   try {
     return run_command("inotifywait",    //TODO use the svlogd exclude list
@@ -118,9 +123,9 @@ bool sleep_it(const BarnConf& barn_conf)  {
                              (barn_conf.source_dir + "/")).first;
 
   } catch (const fs_error& ex) {
-    cout << "You appear not having inotifywait, sleeping for 3 seconds."
+    cout << "You appear not having inotifywait, sleeping instead."
          << ex.what() << endl;
-    sleep(3);
+    sleep_it();
     return true;
   }
 }
@@ -151,7 +156,7 @@ void handle_failure_in_sync_round(const BarnConf barn_conf, BarnError error) {
   send_report(barn_conf.monitor_port,
     Report(barn_conf.service_name, barn_conf.category, FailedToGetSyncList, 1));
 
-  sleep_it(barn_conf);
+  sleep_it();
 }
 
 void execute_single_sync_round(const BarnConf barn_conf, FileNameList file_name_list) {
@@ -177,13 +182,16 @@ void execute_single_sync_round(const BarnConf barn_conf, FileNameList file_name_
       // make sure in the mean time no new file is generated.
       // TODO after using inotify API directly, there is no need for this
       //   as the change notifications will be waiting in the inotify fd
-      ship_statistics.num_shipped || sleep_it(barn_conf);
+      if (ship_statistics.num_shipped)
+        sleep_it();
+      else
+        wait_for_source_change(barn_conf);
     },
     [&](BarnError error) {
 
-      // On error, sleep or wait for a change to prevent error-spins
+      // On error, sleep to prevent error-spins
       cout << "Error:" << error << endl;
-      sleep_it(barn_conf);
+      sleep_it();
     }
   );
 }
