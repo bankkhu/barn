@@ -19,9 +19,33 @@ const std::vector<std::string> DefaultZeroMetrics =
                         (RotatedDuringShip)
                         (LostDuringShip);
 
-class Report {
+/*
+ * Used by barn-agent to emit telemetry.
+ */
+class Metrics {
   public:
 
+  const int port;
+  const std::string service_name;
+  const std::string category;
+
+  Metrics(int port,
+          std::string service_name,
+          std::string category)
+    : port(port),
+      service_name(service_name),
+      category(category)
+  {};
+
+  void send_metric(const std::string& key, int value);
+};
+
+/*
+ * Used by barn-monitor to receive telemtry.
+ * TODO: refactor.
+ */
+class Report {
+  public:
   const std::string service_name;
   const std::string category;
   const std::string key;
@@ -37,15 +61,9 @@ class Report {
       value(value)
   {};
 
-  const std::string serialize() const;
   static Report deserialize(const std::string& serialized);
-
-  private:
-
-  static const auto serialization_delim = ' ';
 };
 
-void send_report(int port, const Report& report);
 void receive_reports(int port, std::function<void(const Report&)> handler);
 
 void send_datagram(int port, std::string message);

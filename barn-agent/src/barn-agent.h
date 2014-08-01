@@ -7,6 +7,7 @@
 #include <boost/variant.hpp>
 
 #include "helpers.h"
+#include "localreport.h"
 
 const auto space = " ";
 const auto token_separator = "@";
@@ -15,7 +16,7 @@ const auto path_separator = "/";
 // The namespace refers to rsync namespace on the server
 // This value shows up on rsync daemon conf.
 // TODO configure this together with barn-master package.
-const auto remote_rsync_namespace = "barn_logs";
+const auto REMOTE_RSYNC_NAMESPACE        = "barn_logs";
 
 // TODO when removing dependence on svlogd, this should be parameterised
 const auto svlogd_exclude_files = boost::assign::list_of<std::string>("config")("current")("lock");
@@ -78,6 +79,15 @@ struct BarnConf {
 };
 
 /*
+ * A channel is a combination of a source and a destination.
+ */
+struct AgentChannel {
+   std::string source_dir;    // Local host logs source directory.
+   std::string rsync_target;  // The full rsync path name. e.g. rsync://80.80.80:80:1000/barn_logs/foo
+};
+
+
+/*
  * A data structure returned by sync functions to report on
  * success / failure of a sync operation
  */
@@ -94,17 +104,16 @@ struct ShipStatistics {
   int num_lost_during_ship;
 };
 
-bool sleep_it(const BarnConf& barn_conf);
+void sleep_it();
 
-Validation<FileNameList> query_candidates(const BarnConf& barn_conf);
+Validation<FileNameList> query_candidates(const AgentChannel& channel);
 
 Validation<ShipStatistics>
-ship_candidates(std::vector<std::string> candidates,
-                     const BarnConf& barn_conf);
+ship_candidates(std::vector<std::string> candidates, const AgentChannel& channel, Metrics metrics);
 
-void handle_failure_in_sync_round(BarnConf barn_conf, BarnError error);
+void handle_failure_in_sync_round(const Metrics metrics, BarnError error);
 void handle_failure_in_ship_round(BarnError error);
-void handle_success_in_ship_round(BarnConf barn_conf, ShipStatistics ship_statistics);
+void handle_success_in_ship_round(Metrics metrics, AgentChannel channel, ShipStatistics ship_statistics);
 
 void barn_agent_main(const BarnConf& barn_conf);
 

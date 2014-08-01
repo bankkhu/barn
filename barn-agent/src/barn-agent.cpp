@@ -17,19 +17,17 @@ using namespace boost;
  * Uses rsync dry run to list all local log files found that are older
  * than the latest log file on the destination host.
  */
-Validation<FileNameList> query_candidates(const BarnConf& barn_conf) {
-  const auto rsync_target = get_rsync_target(barn_conf);
-
-  auto local_files = list_file_names(barn_conf.source_dir, svlogd_exclude_files);
-  sort(local_files.begin(), local_files.end());
+Validation<FileNameList> query_candidates(const AgentChannel& channel) {
+  auto existing_files = list_file_names(channel.source_dir, svlogd_exclude_files);
+  sort(existing_files.begin(), existing_files.end());
 
   const auto rsync_dry_run =
     list_of<string>(rsync_executable_name)
                    (rsync_dry_run_flag)
                    .range(rsync_flags)
                    .range(rsync_exclude_directives)
-                   .range(list_file_paths(barn_conf.source_dir))
-                   (rsync_target);
+                   .range(list_file_paths(channel.source_dir))
+                   (channel.rsync_target);
 
   const auto rsync_output = run_command("rsync", rsync_dry_run);
 
@@ -51,14 +49,12 @@ Validation<FileNameList> query_candidates(const BarnConf& barn_conf) {
    *  remote: {t3, t4}                 // deduced from sync candidates
    *  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
    */
-  return larger_than_gap(local_files, files_not_on_server);
+  return larger_than_gap(existing_files, files_not_on_server);
 }
 
 Validation<ShipStatistics>
-ship_candidates(vector<string> candidates, const BarnConf& barn_conf) {
-  send_report(barn_conf.monitor_port,
-    Report(barn_conf.service_name, barn_conf.category, FilesToShip,
-    candidates.size()));
+ship_candidates(vector<string> candidates, const AgentChannel& channel, Metrics metrics) {
+  metrics.send_metric(FilesToShip, candidates.size());
 
   const int candidates_size = candidates.size();
 
@@ -66,18 +62,17 @@ ship_candidates(vector<string> candidates, const BarnConf& barn_conf) {
 
   sort(candidates.begin(), candidates.end());
 
-  const auto rsync_target = get_rsync_target(barn_conf);
   auto num_lost_during_ship(0);
 
   for(const string& el : candidates) {
-    cout << "Syncing " + el + " on " + barn_conf.source_dir << endl;
-    const auto file_name = barn_conf.source_dir + path_separator + el;
+    cout << "Syncing " + el + " on " + channel.source_dir << endl;
+    const auto file_name = channel.source_dir + path_separator + el;
 
     const auto rsync_wet_run = list_of<string>(rsync_executable_name)
                                               .range(rsync_flags)
                                               .range(rsync_exclude_directives)
                                               (file_name)
-                                              (rsync_target);
+                                              (channel.rsync_target);
 
     if(run_command("rsync", rsync_wet_run).first != 0) {
       cout << "ERROR: Rsync failed to transfer a log file." << endl;
@@ -93,7 +88,7 @@ ship_candidates(vector<string> candidates, const BarnConf& barn_conf) {
   int num_rotated_during_ship(0);
 
   if((num_rotated_during_ship =
-      count_missing(candidates, list_file_names(barn_conf.source_dir))) != 0)
+      count_missing(candidates, list_file_names(channel.source_dir))) != 0)
     cout << "DANGER: We're producing logs much faster than shipping." << endl;
 
   return ShipStatistics(candidates_size
@@ -106,11 +101,11 @@ void sleep_it()  {
   sleep(5);
 }
 
-bool wait_for_source_change(const BarnConf& barn_conf)  {
+bool wait_for_source_change(const AgentChannel& channel)  {
   cout << "Waiting for directory change..." << endl;
 
   try {
-    return run_command("inotifywait",    //TODO use the svlogd exclude list
+    return run_command("inotifywait",    // TODO use the svlogd exclude list
       list_of<string>("inotifywait")
                              ("--exclude")
                              ("'\\.u'")
@@ -123,7 +118,7 @@ bool wait_for_source_change(const BarnConf& barn_conf)  {
                              ("-q")
                              ("-e")
                              ("moved_to")
-                             (barn_conf.source_dir + "/")).first;
+                             (channel.source_dir + "/")).first;
 
   } catch (const fs_error& ex) {
     cout << "You appear not having inotifywait, sleeping instead."
@@ -142,28 +137,33 @@ bool wait_for_source_change(const BarnConf& barn_conf)  {
  *
  */
 void barn_agent_main(const BarnConf& barn_conf) {
+
+  Metrics metrics = Metrics(barn_conf.monitor_port,
+    barn_conf.service_name, barn_conf.category);
+
+  AgentChannel channel;
+  channel.rsync_target = get_rsync_target(barn_conf, REMOTE_RSYNC_NAMESPACE);
+  channel.source_dir = barn_conf.source_dir;
+
   while(true) {
     fold(
-      query_candidates(barn_conf),
+      query_candidates(channel),
       [&](FileNameList file_name_list) {
         fold(
-          ship_candidates(file_name_list, barn_conf),
-          [&](ShipStatistics ship_statistics) { handle_success_in_ship_round(barn_conf, ship_statistics); },
+          ship_candidates(file_name_list, channel, metrics),
+          [&](ShipStatistics ship_statistics) { handle_success_in_ship_round(metrics, channel, ship_statistics); },
           [&](BarnError error) { handle_failure_in_ship_round(error); }
          );
       },
-      [&](BarnError error) { handle_failure_in_sync_round(barn_conf, error); }
+      [&](BarnError error) { handle_failure_in_sync_round(metrics, error); }
     );
   }
 }
 
 
-void handle_failure_in_sync_round(const BarnConf barn_conf, BarnError error) {
+void handle_failure_in_sync_round(Metrics metrics, BarnError error) {
   cout << "Syncing Error:" << error << endl;
-
-  send_report(barn_conf.monitor_port,
-    Report(barn_conf.service_name, barn_conf.category, FailedToGetSyncList, 1));
-
+  metrics.send_metric(FailedToGetSyncList, 1);
   sleep_it();
 }
 
@@ -173,17 +173,11 @@ void handle_failure_in_ship_round(BarnError error) {
   sleep_it();
 }
 
-void handle_success_in_ship_round(BarnConf barn_conf, ShipStatistics ship_statistics) {
-
-
+void handle_success_in_ship_round(Metrics metrics, AgentChannel channel, ShipStatistics ship_statistics) {
   // On success report statistics to local barn-agent in monitor mode
-  send_report(barn_conf.monitor_port,
-    Report(barn_conf.service_name, barn_conf.category, LostDuringShip,
-      ship_statistics.num_lost_during_ship));
+  metrics.send_metric(LostDuringShip, ship_statistics.num_lost_during_ship);
 
-  send_report(barn_conf.monitor_port,
-    Report(barn_conf.service_name, barn_conf.category, RotatedDuringShip,
-      ship_statistics.num_rotated_during_ship));
+  metrics.send_metric(RotatedDuringShip, ship_statistics.num_rotated_during_ship);
 
   // If no file is shipped, wait for a change on directory.
   // If any file is shipped, sleep, then check again for change to
@@ -193,6 +187,6 @@ void handle_success_in_ship_round(BarnConf barn_conf, ShipStatistics ship_statis
   if (ship_statistics.num_shipped)
     sleep_it();
   else
-    wait_for_source_change(barn_conf);
+    wait_for_source_change(channel);
 }
 
