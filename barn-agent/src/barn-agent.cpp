@@ -13,19 +13,107 @@ using namespace std;
 using namespace boost::assign;
 using namespace boost;
 
-/**
+static Validation<ShipStatistics>
+ship_candidates(const AgentChannel& channel, vector<string> candidates);
+static Validation<FileNameList> query_candidates(const AgentChannel& channel);
+void wait_for_directory_change(const string& source_dir);
+void sleep_it();
+
+
+/*
+ * Main Barn Agent's loop.
+ * On every iteration:
+ *   - Query for outstanding candidate files to ship
+ *   - Sync these files to the destination
+ *   - Wait for a change to the source directory using inotify
+ */
+void barn_agent_main(const BarnConf& barn_conf) {
+
+  Metrics metrics = Metrics(barn_conf.monitor_port,
+    barn_conf.service_name, barn_conf.category);
+
+  AgentChannel channel;
+  channel.rsync_target = get_rsync_target(barn_conf, REMOTE_RSYNC_NAMESPACE);
+  channel.source_dir = barn_conf.source_dir;
+
+  auto sync_failure = [&](BarnError error) {
+    cout << "Syncing Error to " << channel.rsync_target << ":" << error << endl;
+    metrics.send_metric(FailedToGetSyncList, 1);
+    sleep_it();
+  };
+
+  auto ship_failure = [&](BarnError error) {
+    cout << "Shippment Error to " << channel.rsync_target << ":" << error << endl;
+    // On error, sleep to prevent error-spins
+    sleep_it();
+  };
+
+  auto after_successful_ship = [&](ShipStatistics ship_statistics) {
+    metrics.send_metric(LostDuringShip, ship_statistics.num_lost_during_ship);
+    metrics.send_metric(RotatedDuringShip, ship_statistics.num_rotated_during_ship);
+
+    // If no file is shipped, wait for a change on directory.
+    // If any file is shipped, sleep, then check again for change to
+    // make sure in the meantime no new file is generated.
+    // TODO after using inotify API directly, there is no need for this
+    //   as the change notifications will be waiting in the inotify fd
+    if (ship_statistics.num_shipped)
+      sleep_it();
+    else
+      wait_for_directory_change(channel.source_dir);
+  };
+
+  while(true) {
+    fold(
+      query_candidates(channel),
+      [&](FileNameList file_name_list) {
+        metrics.send_metric(FilesToShip, file_name_list.size());
+        fold(
+          ship_candidates(channel, file_name_list),
+          after_successful_ship,
+          ship_failure);
+      },
+      sync_failure
+    );
+  }
+}
+
+
+/*
+ * rsync flags
+ */
+// TODO: move rsync specifics to rsync.cpp
+
+  // TODO when removing dependence on svlogd, this should be parameterised
+static const auto SVLOGD_EXCLUDE_FILES =
+        boost::assign::list_of<std::string>("config")("current")("lock");
+static const auto RSYNC_EXCLUDE_DIRECTIVES = prepend_each(
+  boost::assign::list_of<std::string>("*.u")
+                                     .range(SVLOGD_EXCLUDE_FILES)
+                                     ("*~")
+  , "--exclude=");
+
+ // timeout to prevent half-open rsync connections.
+ // verbose as we use the rsync output to find out about outstanding files. yuck.
+ // times to preserve mod times on server (a sync optimisation)
+const auto RSYNC_FLAGS = boost::assign::list_of<std::string>
+        ("--times")("--verbose")("--timeout=30");
+
+/*
+ * Return names of all local files older than the latest file on the
+ * destination server.
  * Uses rsync dry run to list all local log files found that are older
  * than the latest log file on the destination host.
  */
 Validation<FileNameList> query_candidates(const AgentChannel& channel) {
-  auto existing_files = list_file_names(channel.source_dir, svlogd_exclude_files);
+  auto existing_files = list_file_names(channel.source_dir, SVLOGD_EXCLUDE_FILES);
   sort(existing_files.begin(), existing_files.end());
 
   const auto rsync_dry_run =
     list_of<string>(rsync_executable_name)
                    (rsync_dry_run_flag)
-                   .range(rsync_flags)
-                   .range(rsync_exclude_directives)
+                   .range(RSYNC_FLAGS)
+                   .range(RSYNC_EXCLUDE_DIRECTIVES)
                    .range(list_file_paths(channel.source_dir))
                    (channel.rsync_target);
 
@@ -52,10 +140,12 @@ Validation<FileNameList> query_candidates(const AgentChannel& channel) {
   return larger_than_gap(existing_files, files_not_on_server);
 }
 
-Validation<ShipStatistics>
-ship_candidates(vector<string> candidates, const AgentChannel& channel, Metrics metrics) {
-  metrics.send_metric(FilesToShip, candidates.size());
 
+/*
+ * Ship candidates to channel destination.
+ */
+Validation<ShipStatistics>
+ship_candidates(const AgentChannel& channel, vector<string> candidates) {
   const int candidates_size = candidates.size();
 
   if(!candidates_size) return ShipStatistics(0, 0, 0);
@@ -66,11 +156,12 @@ ship_candidates(vector<string> candidates, const AgentChannel& channel, Metrics 
 
   for(const string& el : candidates) {
     cout << "Syncing " + el + " on " + channel.source_dir << endl;
-    const auto file_name = channel.source_dir + path_separator + el;
+    const auto file_name = channel.source_dir + RSYNC_PATH_SEPARATOR + el;
 
+    // TODO: move rsync specifics into rsync.cpp
     const auto rsync_wet_run = list_of<string>(rsync_executable_name)
-                                              .range(rsync_flags)
-                                              .range(rsync_exclude_directives)
+                                              .range(RSYNC_FLAGS)
+                                              .range(RSYNC_EXCLUDE_DIRECTIVES)
                                               (file_name)
                                               (channel.rsync_target);
 
@@ -101,11 +192,11 @@ void sleep_it()  {
   sleep(5);
 }
 
-bool wait_for_source_change(const AgentChannel& channel)  {
+void wait_for_directory_change(const string& source_dir)  {
   cout << "Waiting for directory change..." << endl;
 
   try {
-    return run_command("inotifywait",    // TODO use the svlogd exclude list
+    run_command("inotifywait",    // TODO use the svlogd exclude list
       list_of<string>("inotifywait")
                              ("--exclude")
                              ("'\\.u'")
@@ -118,75 +209,11 @@ bool wait_for_source_change(const AgentChannel& channel)  {
                              ("-q")
                              ("-e")
                              ("moved_to")
-                             (channel.source_dir + "/")).first;
+                             (source_dir + "/")).first;
 
   } catch (const fs_error& ex) {
     cout << "You appear not having inotifywait, sleeping instead."
          << ex.what() << endl;
     sleep_it();
-    return true;
   }
 }
-
-/*
- * Main Barn Agent's loop.
- * On every iteration it queries for outstanding candidate files to ship
- * and on success initiates a single round of sync which will
- * try to sync the files as well as waits for a change on
- * the directory that was just shipped.
- *
- */
-void barn_agent_main(const BarnConf& barn_conf) {
-
-  Metrics metrics = Metrics(barn_conf.monitor_port,
-    barn_conf.service_name, barn_conf.category);
-
-  AgentChannel channel;
-  channel.rsync_target = get_rsync_target(barn_conf, REMOTE_RSYNC_NAMESPACE);
-  channel.source_dir = barn_conf.source_dir;
-
-  while(true) {
-    fold(
-      query_candidates(channel),
-      [&](FileNameList file_name_list) {
-        fold(
-          ship_candidates(file_name_list, channel, metrics),
-          [&](ShipStatistics ship_statistics) { handle_success_in_ship_round(metrics, channel, ship_statistics); },
-          [&](BarnError error) { handle_failure_in_ship_round(error); }
-         );
-      },
-      [&](BarnError error) { handle_failure_in_sync_round(metrics, error); }
-    );
-  }
-}
-
-
-void handle_failure_in_sync_round(Metrics metrics, BarnError error) {
-  cout << "Syncing Error:" << error << endl;
-  metrics.send_metric(FailedToGetSyncList, 1);
-  sleep_it();
-}
-
-void handle_failure_in_ship_round(BarnError error) {
-  cout << "Shippment Error:" << error << endl;
-  // On error, sleep to prevent error-spins
-  sleep_it();
-}
-
-void handle_success_in_ship_round(Metrics metrics, AgentChannel channel, ShipStatistics ship_statistics) {
-  // On success report statistics to local barn-agent in monitor mode
-  metrics.send_metric(LostDuringShip, ship_statistics.num_lost_during_ship);
-
-  metrics.send_metric(RotatedDuringShip, ship_statistics.num_rotated_during_ship);
-
-  // If no file is shipped, wait for a change on directory.
-  // If any file is shipped, sleep, then check again for change to
-  // make sure in the mean time no new file is generated.
-  // TODO after using inotify API directly, there is no need for this
-  //   as the change notifications will be waiting in the inotify fd
-  if (ship_statistics.num_shipped)
-    sleep_it();
-  else
-    wait_for_source_change(channel);
-}
-
