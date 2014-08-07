@@ -13,6 +13,7 @@
 // This value shows up on rsync daemon conf.
 // TODO configure this together with barn-master package.
 const auto REMOTE_RSYNC_NAMESPACE        = "barn_logs";
+const auto REMOTE_RSYNC_NAMESPACE_BACKUP = "barn_backup_logs";
 
 typedef std::string FileName;
 typedef std::vector<FileName> FileNameList;
@@ -24,7 +25,8 @@ typedef std::string BarnError;
  * Contains parsed command line params passed to barn-agent.
  */
 struct BarnConf {
-  std::string barn_rsync_addr; // remote rsync daemon's address
+  std::string primary_rsync_addr;   // primary remote rsync daemon's address
+  std::string secondary_rsync_addr; // secondary remote rsync daemon's address
   std::string source_dir; // Source of local log files
   std::string service_name; // Service name to be attributed to the logs
   std::string category;  // Category (as secondary name) TODO: currently unused

@@ -16,7 +16,9 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
     desc.add_options()
         ("help",
           "produce help message")
-        ("master,m", po::value<string>(&conf.barn_rsync_addr),
+        ("primary-addr,m", po::value<string>(&conf.primary_rsync_addr),
+          "barn-master's host:port address")
+        ("secondary-addr,m", po::value<string>(&conf.secondary_rsync_addr),
           "barn-master's host:port address")
         ("source,s", po::value<string>(&conf.source_dir),
           "source log directory")
@@ -39,9 +41,10 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
       show_desc = true;
     else if (!vm["monitor_mode"].empty() && vm["monitor_port"].empty())
       show_desc = true;
-    else if ((vm["master"].empty() || vm["source"].empty() ||
+    else if ((vm["primary-addr"].empty() || vm["secondary-addr"].empty() ||
+      vm["source"].empty() ||
       vm["service-name"].empty() || vm["category"].empty() ||
-      vm["monitor_port"].empty()) && vm["monitor_mode"].empty())
+      vm["monitor_port"].empty()) && !conf.monitor_mode)
       show_desc = true;
 
     if(show_desc) {
