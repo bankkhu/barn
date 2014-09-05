@@ -4,27 +4,26 @@ Barn is a log aggregation and archival system.
 
 ## Overview
 
-Barn attempts to solve the following problems:
+Barn attempts to solve the following problem:
+provide high throughput, fault-tolerent shipping & concatenation of
+log files from application machines to HDFS.
 
-* provide high durability guarantees
-* provide high throughput
-* provide real-time stream inspection
-* be easy to integrate with
-* be suave to operate
-* be smoothly fault-tolerant
+In contrast to other systems, which attempt to treat log aggregation as a
+messaging problem, Barn treats it as a file transfer problem.
 
-The first three requirements are clearly competing with each other. In contrast
-to other systems, which attempt to treat log aggregation as a messaging problem,
-Barn separates it into two diffent problems: file transfer and messaging.
+
+### Diagram
+
+![Barn Diagram](/contrib/barn_diagram.png?raw=true)
 
 ### Producer
 
-Let's look at the producer: we assume that a process is emitting newline-
-separated character data on standard output. Every line is considered a log
-record, and gets written to the local disk using the excellent `svlogd` program
-from the `runit` package. A separate agent watches `svlogd`s output directory,
-and, upon log file rotation, attempts to ship non-current log files to a remote
-server.
+We assume the producer is a process emitting newline-separated character data
+on standard output. Every line is considered a log record, and gets written to
+the local disk using the excellent `svlogd` program from the `runit` package.
+A separate process 'barn-agent' watches `svlogd`s output directory, and, upon
+log file rotation (using inotify api), attempts to ship non-current log files
+to a remote server.
 
 ```shell
 # example snippet of a runit 'log/run' script
@@ -51,7 +50,7 @@ certain amount of data has been written, until it gets shipped to remote
 storage.
 
 
-### Collector
+### Collector: barn-agent
 
 The destination for `barn-harvester-agent` doesn't do a lot. In fact, the
 current implementation is just a `rsync` daemon (so `barn-harvester-agent` is
@@ -59,15 +58,30 @@ only little more than a clever way to invoke `rsync`). We also provide some
 script to keep a slave `rsync` server in sync (failover of the producers is not
 automatic).
 
-### Barn Baler
+### Aggregator: barn-hdfs
 
-The collector node is assumed to be just a single machine, thus with limited
-disk space. So ultimately we want our data to be archived in distributed storage
--- we use HDFS. Since importing data into HDFS in a reliable, fault-tolerant way
-is a bit of a hairy thing, we provide `baler`, which exploits the `Tai64`
+The collector node is assumed to be a few central machines, that concatenates
+files and ships them to distributed storage -- we use HDFS.
+Since importing data into HDFS in a reliable, fault-tolerant way
+is a bit of a hairy thing, we provide `barn-hdfs`, which exploits the `Tai64`
 timestamps `svlogd` uses to name rotated logfiles to provide idempotent,
 block-optimizing writes to HDFS.
 
+## How barn works
+
+To get logs from a source application (e.g. a webserver) to HDFS barn is setup
+as follows;
+
+* the source application logs to stdout and is wrapped in [svlogd](http://smarden.org/runit/svlogd.8.html).
+* when svlogd rotates the file it creates a file named by the [tai64n](http://cr.yp.to/libtai/tai64.html) time.
+* a barn-agent per source application uses [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html) to be alerted when a new file is created.
+* 'barn-agent' then rsyncs the file to a 'barn-hdfs' machine.
+* 'barn-hdfs' takes care of storing these logs for a while, merging them and
+shipping them to HDFS.
+* 'barn-hdfs' either waits until the files are greater than 1GB in size or a
+'shipping-interval' has passed, then merges and compresses whatever files are available.
+* It then copies this file to tmp directory on HDFS and does an atomic rename to
+its destination directory on HDFS.
 
 ## Related Work
 
@@ -80,9 +94,7 @@ We also had to write a lot of custom code (disk buffering, sequence files,
 syslog parsing to get the desired bucketing), which would need to be rewritten
 for `flume-ng`.
 
-While `syslog` mainly does what you would expect, it is archaic to configure (we
-use `rsyslogd`), and doesn't tell you anything if it happens to _not_ do what
-you expect.
+While `syslog` mainly does what you would expect, it is archaic to configure, and doesn't tell you anything if it happens to _not_ do what you expect.
 
 * AMQP
 
