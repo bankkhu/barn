@@ -5,6 +5,7 @@ import org.apache.hadoop.io.SequenceFile
 import org.apache.hadoop.io.SequenceFile.CompressionType
 import org.apache.commons.io.IOUtils
 import java.io.{FileInputStream, FileOutputStream}
+import java.nio.charset.{Charset, CharsetDecoder, CodingErrorAction}
 import scala.io.Source
 import org.apache.hadoop.io.{BytesWritable => BW, LongWritable => LW, SequenceFile}
 import org.apache.hadoop.conf.Configuration
@@ -17,6 +18,8 @@ object FileCombiner extends FileCombiner
 
 trait FileCombiner extends Logging {
 
+  val utf8 = Charset.forName("UTF-8");
+
   //Combines files into a single file
   def combineFiles(localFiles: List[File], outputFile: File) = {
     val inputStreams = localFiles.map(x => new FileInputStream(x))
@@ -28,10 +31,8 @@ trait FileCombiner extends Logging {
     outputStream.close
   }
 
-  import java.nio.charset.{Charset, CharsetDecoder, CodingErrorAction}
-
   def getUTF8Decoder : CharsetDecoder = {
-    val decoder = Charset.forName("UTF-8").newDecoder()
+    val decoder = utf8.newDecoder()
     decoder.onMalformedInput(CodingErrorAction.REPLACE)
     decoder.replaceWith("?")
     return decoder
@@ -66,7 +67,7 @@ trait FileCombiner extends Logging {
 
       try while(bufferedSource.ready)
             outputWriter.append( new LW(System.currentTimeMillis())
-                               , new BW(bufferedSource.readLine.getBytes))
+                               , new BW(bufferedSource.readLine.getBytes(utf8)))
       finally bufferedSource.close
 
     })
