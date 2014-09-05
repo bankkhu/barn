@@ -45,7 +45,7 @@ void timer_action(Timer* timer, MetricRepo* metrics, boost::mutex* repo_mutex){
   timer->async_wait(bind(timer_action, timer, metrics, repo_mutex));
 }
 
-void barn_agent_local_monitor_main(const BarnConf& barn_conf){
+void barn_agent_local_monitor_main(const BarnConf& barn_conf) {
 
   auto metrics = MetricRepo(max_metrics_per_interval);
   boost::mutex mutex;
@@ -58,7 +58,7 @@ void barn_agent_local_monitor_main(const BarnConf& barn_conf){
   receive_reports(barn_conf.monitor_port, [&](const Report& new_report) {
     boost::mutex::scoped_lock lock(mutex);
     metrics.push_back(kv_pair(new_report));
-    cout << "Individual report received: " << new_report.serialize() << endl;
+    // cout << "Individual report received: " << new_report.serialize() << endl;
   });
 
 }

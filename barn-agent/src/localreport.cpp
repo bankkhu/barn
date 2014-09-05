@@ -8,23 +8,20 @@
 
 using namespace std;
 
-void send_report(int port, const Report& report) {
-  send_datagram(port, report.serialize());
+void Metrics::send_metric(const std::string& key, int value) {
+  static const auto SERIALIZATION_DELIM = ' ';
+  std::ostringstream oss;
+
+  oss << service_name << SERIALIZATION_DELIM
+      << category << SERIALIZATION_DELIM
+      << key << SERIALIZATION_DELIM
+      << value;
+
+  send_datagram(port, oss.str());
 }
 
 void receive_reports(int port, function<void(const Report&)> handler) {
   receive_datagrams(port, bind(handler, bind(Report::deserialize, _1)));
-}
-
-const std::string Report::serialize() const {
-  std::ostringstream oss;
-
-  oss << service_name << serialization_delim
-      << category << serialization_delim
-      << key << serialization_delim
-      << value;
-
-  return oss.str();
 }
 
 Report Report::deserialize(const std::string& serialized) {

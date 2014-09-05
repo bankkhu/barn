@@ -7,7 +7,7 @@
 #include "params.h"
 
 /*
- * Main loop. Parses command line and based on  weather it's in monitor mode,
+ * Main loop. Parses command line and based on whether it's in monitor mode,
  * branches into two sub main functions.
  *
  */
