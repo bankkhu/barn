@@ -13,7 +13,7 @@ env = Environment(LIBS = library_dependencies,
 env.Append(CPPPATH = ['./src/external/', os.environ.get('BOOST_LIB_PATH','')])
 env.Append(LIBPATH = [os.environ.get('BOOST_LIB_PATH','')])
 
-# ???
+# Allow overriding of the default compiler
 if os.environ.has_key('CXX'):
   custom_CXX = os.environ['CXX']
   print 'Replacing default CXX with ' + custom_CXX

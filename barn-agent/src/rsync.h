@@ -16,6 +16,9 @@ const auto RSYNC_PATH_SEPARATOR = "/";
 
 const std::vector<std::string> get_rsync_candidates(std::string rsync_output);
 const std::vector<std::string> choose_earliest_subset(std::vector<std::string> file_names);
-const std::string get_rsync_target(const BarnConf& barn_conf, std::string remote_rsync_namespace);
+const std::string get_rsync_target(const std::string& destination_host_addr,
+                                   const std::string& remote_rsync_namespace,
+                                   const std::string& service_name,
+                                   const std::string& category);
 
 #endif

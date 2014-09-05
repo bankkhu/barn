@@ -220,3 +220,24 @@ void wait_for_directory_change(ChannelSelector<AgentChannel>* cs)  {
     sleep_it();
   }
 }
+
+ChannelSelector<AgentChannel> create_channel_selector(const BarnConf& barn_conf) {
+  AgentChannel primary;
+  primary.rsync_target = get_rsync_target(
+        barn_conf.primary_rsync_addr,
+        REMOTE_RSYNC_NAMESPACE,
+        barn_conf.service_name,
+        barn_conf.category);
+  primary.source_dir = barn_conf.source_dir;
+
+  AgentChannel backup;
+  backup.rsync_target = get_rsync_target(
+        barn_conf.secondary_rsync_addr,
+        REMOTE_RSYNC_NAMESPACE_BACKUP,
+        barn_conf.service_name,
+        barn_conf.category);
+  backup.source_dir = barn_conf.source_dir;
+
+  // TODO: make failover time configurable.
+  return ChannelSelector<AgentChannel>(primary, backup, 10*60);
+}
