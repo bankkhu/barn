@@ -1,15 +1,18 @@
 # Please make sure CPLUS_INCLUDE_PATH includes boost's include path and
 # LIBRARY_PATH includes boost's library path.
 
-.PHONY: build dist clean fpm
+.PHONY: build clean dist fpm test
 
 VERSION := 0.5.13
 DEB := barn-agent_$(VERSION)_all.deb
 
-default : build
+default : test
 
 build :
 	scons
+
+test : build
+	./test/barn_test
 
 dist : build $(DEB)
 

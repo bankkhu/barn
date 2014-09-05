@@ -13,11 +13,15 @@ using namespace std;
 using namespace boost::assign;
 using namespace boost;
 
+/**
+ * Uses rsync dry run to list all local log files found that are older
+ * than the latest log file on the destination host.
+ */
 Validation<FileNameList> query_candidates(const BarnConf& barn_conf) {
   const auto rsync_target = get_rsync_target(barn_conf);
 
-  auto existing_files = list_file_names(barn_conf.source_dir, svlogd_exclude_files);
-  sort(existing_files.begin(), existing_files.end());
+  auto local_files = list_file_names(barn_conf.source_dir, svlogd_exclude_files);
+  sort(local_files.begin(), local_files.end());
 
   const auto rsync_dry_run =
     list_of<string>(rsync_executable_name)
@@ -33,8 +37,8 @@ Validation<FileNameList> query_candidates(const BarnConf& barn_conf) {
      rsync_output.first != PARTIAL_TRANSFER_DUE_VANISHED_SOURCE)
   return BarnError(string("Failed to retrieve sync list: ") + rsync_output.second);
 
-  auto rsync_candidates = get_rsync_candidates(rsync_output.second);
-  sort(rsync_candidates.begin(), rsync_candidates.end());
+  auto files_not_on_server = get_rsync_candidates(rsync_output.second);
+  sort(files_not_on_server.begin(), files_not_on_server.end());
 
   /* Given that a client is retaining arbitrarily long history of files
    * this tries to detect which files are already on the server, and only
@@ -43,11 +47,11 @@ Validation<FileNameList> query_candidates(const BarnConf& barn_conf) {
    * locally and what's missing on the server. Example:
    *
    *  local:  {t1, t2, t3, t4, t5, t6}
-   *  remote: {t3, t4}                 //unknown to the client; to be deduced.
-   *  sync result: {t1, t2, t5, t6}
-   *  we'll ship: {t5,t4} since {t1,t2} are less than the gap {t3, t4}
+   *  sync candidates: {t1, t2, t5, t6}
+   *  remote: {t3, t4}                 // deduced from sync candidates
+   *  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
    */
-  return larger_than_gap(existing_files, rsync_candidates);
+  return larger_than_gap(local_files, files_not_on_server);
 }
 
 Validation<ShipStatistics>

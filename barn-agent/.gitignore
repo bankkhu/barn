@@ -3,3 +3,5 @@ barn-agent
 build
 *.o
 .sconsign.dblite
+test/barn_test
+test/libgtest.a

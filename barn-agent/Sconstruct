@@ -6,20 +6,46 @@ library_dependencies = ['boost_system'
                       , 'boost_program_options'
                       , 'pthread']
 
-env = Environment(CPPDEFINES=[], LIBS=[], ENV = os.environ)
+env = Environment(LIBS = library_dependencies,
+                  CCFLAGS = ['-std=c++11', '-pedantic'])
 
+# Add Boost
 env.Append(CPPPATH = ['./src/external/', os.environ.get('BOOST_LIB_PATH','')])
 env.Append(LIBPATH = [os.environ.get('BOOST_LIB_PATH','')])
 
+# ???
 if os.environ.has_key('CXX'):
   custom_CXX = os.environ['CXX']
   print 'Replacing default CXX with ' + custom_CXX
   env.Replace(CXX = custom_CXX) 
 
+# Programs
 
-link_flags = "--static" if env['PLATFORM'] != 'darwin' else ""
+release_env = env.Clone()
 
-env.Program('barn-agent', [Glob('./src/*.cpp')]
-                        , LIBS = library_dependencies
-                        , CCFLAGS = ['-std=c++11', '-pedantic', '-O2']
-                        , LINKFLAGS = link_flags)
+# ???
+if release_env['PLATFORM'] != 'darwin':
+    release_env['LINKFLAGS'] = '--static'
+release_env.Append(CCFLAGS = ['-O2'])
+
+barn_agent_sources = Glob('./src/[!main]*.cpp')
+
+barn_agent = release_env.Program('barn-agent',
+                                 ['src/main.cpp'] + barn_agent_sources)
+
+# Testing
+
+test_env = env.Clone()
+test_env.Append(LIBS = ['gtest'])
+test_env.Append(LIBS = ['pthread'])  # TODO: pthread must be last LIB, why?
+test_env.Append(CPPPATH = ['test'])
+test_env.Append(CPPPATH = ['src'])
+test_env.Append(CPPPATH = ['test/gtest-1.7.0', 'test/gtest-1.7.0/include'])
+test_env.Append(LIBPATH = ['test'])
+test_env.Append(CCFLAGS = ['-g'])
+
+test_env.Library('test/gtest', ['test/gtest-1.7.0/src/gtest-all.cc'])
+
+barn_test = test_env.Program('test/barn_test', Glob('./test/*.cpp'))
+
+Depends(barn_test, barn_agent)

@@ -18,10 +18,11 @@ int count_missing(std::vector<std::string> small, std::vector<std::string> big);
   Example:
   A = {1,2,3,4,5,6,7,8}
   B = {1,2,3,4,    7,8}
-  C = A \ B = {6,7}
-  D = {x | x ∈ B && x > min(C)}   // result
+  C = A \ B = {5,6}
+  D = {x | x ∈ B && x > max(C)}   // result = {7,8}
 */
 
+// TODO: rename larger_than_gap to tail_intersection.
 template<typename T>
 std::vector<T> larger_than_gap(const std::vector<T> A, const std::vector<T> B) {
   using boost::lambda::_1;
