@@ -10,7 +10,7 @@ log files from application machines to HDFS.
 
 In contrast to other systems, which attempt to treat log aggregation as a
 messaging problem, Barn treats it as a file transfer problem.
-
+(yes)
 
 ### Diagram
 
