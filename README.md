@@ -89,7 +89,7 @@ its destination directory on HDFS.
 
 This is the combination we've been running in production for about a year. The
 main problem was around `append`ing to HDFS files, which is very sensitive to
-cluster availablity -- even restarting data nodes could confuse the DFSClient.
+cluster availability -- even restarting data nodes could confuse the DFSClient.
 We also had to write a lot of custom code (disk buffering, sequence files,
 syslog parsing to get the desired bucketing), which would need to be rewritten
 for `flume-ng`.
@@ -162,7 +162,7 @@ make dist
 
 ## Installation
 
-We provide debian packages of all `barn` components (_TODO_), as well has zip
+We provide debian packages of all `barn` components (_TODO_), as well as zip
 and tar packages. The runtime dependencies are as follows:
 
 ### Agent
