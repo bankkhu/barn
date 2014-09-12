@@ -3,16 +3,19 @@ package barn
 import scalaz._
 import Scalaz._
 
+import org.scalatest.BeforeAndAfter
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.prop.Checkers
 import org.scalacheck.Prop._
 import org.apache.hadoop.conf.Configuration
 import barn.placement.HdfsPlacementStrategy
+import scala.collection.JavaConverters._
 import org.joda.time._
 
 class HdfsPlacementSuite
   extends FunSuite
+  with BeforeAndAfter
   with Checkers
   with HdfsPlacementStrategy
   with PlacementGenerators
@@ -24,8 +27,14 @@ class HdfsPlacementSuite
 
   val conf = tap(new Configuration()){_.set("fs.default.name"
                                           , "hdfs://localhost:9000")}
-  val fs = Hadoop.createFileSystem(conf).toOption.get
-/*
+  val fs = Hadoop.createLazyFileSystem(conf).toOption.get
+
+  var hdfsListCache : HdfsListCache  = _
+
+  before {
+    hdfsListCache = new HdfsListCacheJ asScala
+  }
+
   test("Should plan to ship all files if no file is yet shipped") {
 
       val shippingInterval = 0
@@ -41,12 +50,14 @@ class HdfsPlacementSuite
 
             planNextShip(fs
                        , serviceInfo
+                       , 1, 2
                        , baseDir
                        , shippingInterval
-                       , lookBack) match {
+                       , lookBack
+                       , hdfsListCache) match {
 
-              case Failure(e) => false :| "Failed to plan to ship with " + e
-              case Success(shippingPlan) =>
+              case -\/(e:BarnError) => false :| "Failed to plan to ship with " + e
+              case \/-(shippingPlan:ShippingPlan) =>
 
                 val now = DateTime.now
                 val correctPlan =
@@ -58,7 +69,7 @@ class HdfsPlacementSuite
                                                 shippingPlan +
                                                " Wanted:" + correctPlan
 
-              case other => false :| "Plan isn't expected" + other
+              case other => false :| "Plan isn't expected" + other + ", " + other.getClass()
             }
         })
    }
@@ -91,12 +102,14 @@ class HdfsPlacementSuite
 
           planNextShip(fs
                      , serviceInfo
+                     , 1, 2
                      , baseDir
                      , shippingInterval
-                     , lastShippedDate.minusDays(1)) match {
+                     , lastShippedDate.minusDays(1)
+                     , hdfsListCache) match {
 
-            case Failure(e) => false :| "Failed to plan to ship with " + e
-            case Success(shippingPlan) =>
+            case -\/(e:BarnError) => false :| "Failed to plan to ship with " + e
+            case \/-(shippingPlan:ShippingPlan) =>
 
               (shippingPlan == correctPlan) :| "Wrong plan deduced. Got:" +
                                               shippingPlan +
@@ -108,7 +121,7 @@ class HdfsPlacementSuite
    }
 
 
-  test("Should refrain from shipping if shippingInterval isnt't reached") {
+  test("Should refrain from shipping if shippingInterval isn't reached") {
 
     check(
 
@@ -133,13 +146,15 @@ class HdfsPlacementSuite
 
           planNextShip(fs
                      , serviceInfo
+                     , 1, 2
                      , baseDir
                      , shippingInterval
-                     , lastShippedDate.minusDays(1)) match {
-            case Failure(SyncThrottled(_)) =>
+                     , lastShippedDate.minusDays(1)
+                     , hdfsListCache) match {
+            case -\/(_:SyncThrottled) =>
               shouldThrottle :| "Sync throttled though it shouldn't have been"
-            case Failure(e) => false :| "Failed to plan to ship with " + e
-            case Success(shippingPlan) =>
+            case -\/(e:BarnError) => false :| "Failed to plan to ship with " + e
+            case \/-(shippingPlan:ShippingPlan) =>
 
               val correctPlan = ShippingPlan(targetDir
                                            , targetTempDir(baseDir)
@@ -155,5 +170,5 @@ class HdfsPlacementSuite
           fs.delete(lastShippedFile, true)
       })
   }
-*/
+
 }
