@@ -4,8 +4,9 @@ VERSION := $(shell cat build.sbt | sed -n -E -e 's/version[[:space:]]+:=[[:space
 PACKAGE_ZIP := dist/barn-hdfs-$(VERSION).zip
 SRC := src/main/scala/**/*.scala
 
-DAHOOP_BASE := hadoop-0.20.2-cdh3u5
-DAHOOP_URL  := http://archive.cloudera.com/cdh/3/$(DAHOOP_BASE).tar.gz
+DAHOOP_BASE := hadoop-2.0.0-cdh4.3.1
+DAHOOP_URL  := http://archive.cloudera.com/cdh4/cdh/4/$(DAHOOP_BASE).tar.gz
+
 DAHOOP_DATA := hadoop-data
 
 SBT 		:= ./sbt
@@ -32,8 +33,8 @@ clean :
 start-hadoop : $(DAHOOP_BASE) $(DAHOOP_DATA)
 	@echo "Starting Dahoops..."
 	(cd $(DAHOOP_BASE); \
-	 ./bin/hadoop namenode& echo $$! > namenode.pid; \
-	 ./bin/hadoop datanode& echo $$! > datanode.pid)
+	 ./bin/hadoop namenode > namenode.log 2>&1 & echo $$! > namenode.pid; \
+	 ./bin/hadoop datanode > datanode.log 2>&1 & echo $$! > datanode.pid)
 
 stop-hadoop : $(DAHOOP_BASE)
 	@echo "Stopping Dahoops..."
@@ -44,14 +45,12 @@ stop-hadoop : $(DAHOOP_BASE)
 
 $(PACKAGE_ZIP) : $(SRC)
 	@echo "Building barn-hdfs.zip..."
-	# $(MAKE) start-hadoop
 	$(SBT) clean test package-dist
-	# $(MAKE) stop-hadoop
 
 $(DAHOOP_BASE) :
 	$(MAKE) $(DAHOOP_BASE).tar.gz
 	tar xvfz $(DAHOOP_BASE).tar.gz && \
-	cp conf-hadoop-pseudo/*.xml $(DAHOOP_BASE)/conf
+	cp conf-hadoop-pseudo/*.xml $(DAHOOP_BASE)/etc/hadoop/
 
 
 $(DAHOOP_BASE).tar.gz :
