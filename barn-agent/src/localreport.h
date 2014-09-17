@@ -2,7 +2,6 @@
 #define LOCALREPORT_H
 
 #include <string>
-#include <ctime>
 #include <iostream>
 #include <string>
 #include <boost/assign/list_of.hpp>
@@ -11,12 +10,14 @@ const std::string FilesToShip("barn_files_to_ship");
 const std::string FailedToGetSyncList("barn_failed_to_get_sync_list");
 const std::string RotatedDuringShip("barn_rotated_during_ship");
 const std::string LostDuringShip("barn_lost_during_ship");
+const std::string NumFilesShipped("barn_files_shipped");
 
 //These metrics will be published as zero if not occured
 const std::vector<std::string> DefaultZeroMetrics =
   boost::assign::list_of(FilesToShip)
                         (FailedToGetSyncList)
                         (RotatedDuringShip)
+                        (NumFilesShipped)
                         (LostDuringShip);
 
 /*
