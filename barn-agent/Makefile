@@ -1,10 +1,11 @@
 # Please make sure CPLUS_INCLUDE_PATH includes boost's include path and
 # LIBRARY_PATH includes boost's library path.
 
-.PHONY: build clean dist fpm test
+.PHONY: build clean dist canary fpm test
 
 VERSION := 0.5.13
 DEB := barn-agent_$(VERSION)_all.deb
+CANARY := barn-agent-canary_$(VERSION)_all.deb
 
 default : test
 
@@ -15,6 +16,8 @@ test : build
 	./test/barn_test
 
 dist : build $(DEB)
+
+canary : build $(CANARY)
 
 clean :
 	scons -c
@@ -36,6 +39,22 @@ $(DEB) :
 			-d inotify-tools \
 			-d ganglia-monitor \
 			./usr/local/bin/barn-agent
+
+$(CANARY) :
+	@echo "Building agent canary .deb..."
+	mkdir -p build/usr/local/bin/
+	cp barn-agent build/usr/local/bin/barn-agent-canary
+	$(MAKE) fpm
+	fpm -C build \
+			-s dir -t deb \
+			-v $(VERSION) \
+			-a all \
+			-n barn-agent-canary \
+			-d bash \
+			-d rsync \
+			-d inotify-tools \
+			-d ganglia-monitor \
+			./usr/local/bin/barn-agent-canary
 
 fpm :
 	@echo "Checking for fpm gem..."
