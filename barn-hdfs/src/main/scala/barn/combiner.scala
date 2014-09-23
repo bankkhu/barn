@@ -10,8 +10,6 @@ import scala.io.Source
 import org.apache.hadoop.io.{BytesWritable => BW, LongWritable => LW, SequenceFile}
 import org.apache.hadoop.conf.Configuration
 import sun.misc.BASE64Decoder
-import scalaz._
-import Scalaz._
 import org.apache.commons.lang.RandomStringUtils
 
 object FileCombiner extends FileCombiner
@@ -78,13 +76,13 @@ trait FileCombiner extends Logging {
   }
 
   def concatCandidates(candidates: List[File], targetDir: Dir)
-  : BarnError \/ File = validate ({
+  : Either[BarnError, File] = validate ({
     val combinedName = RandomStringUtils.randomAlphanumeric(20)
     val combinedLocalFile = new File(targetDir, combinedName)
     info("Combining " + candidates.size + " ("+ candidates.head + " and ... )" +
       " into " + combinedLocalFile)
     combineIntoSeqFile(candidates, combinedLocalFile)
-    combinedLocalFile right
+    Right(combinedLocalFile)
   } , "Can't combine files into a sequence file." +
       " Candidates to combine: " + candidates)
 
