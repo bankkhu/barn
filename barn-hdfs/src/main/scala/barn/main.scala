@@ -8,6 +8,11 @@ import placement._
 import org.apache.hadoop.conf.{Configuration => HadoopConf}
 import org.joda.time._
 
+/**
+ * This singleton defines the main barn-hdfs routine which is responsible
+ * for looking at list of files it has received from barn-agents, comparing
+ * to what is already on HDFS and transfering the difference.
+ */
 object BarnHdfsWriter
   extends App
   with Logging
@@ -25,6 +30,10 @@ object BarnHdfsWriter
   val maxReadySize = 1 * 1024 * 1024 * 1024 // 1GB
   val excludeList = List("""^\..*""") //Exclude files starting with dot (temp)
 
+  /**
+   * Load the barn configuration and launch the synchronization
+   * routine on the set of subdirectories.
+   */
   loadConf(args) { barnConf => {
 
     enableGanglia(barnConf.appName
@@ -46,8 +55,13 @@ object BarnHdfsWriter
     }
   }}
 
+  /**
+   * This routing here is responsible for launching one
+   * or many actOnServiceDir threads
+   */
   def syncRootLogDir(barnConf: BarnConf)(dirs: List[Dir])
   : Unit = dirs match {
+
     case Nil =>
       info("No service has appeared in root log dir. Incorporating patience.")
       Thread.sleep(1000)
@@ -70,17 +84,37 @@ object BarnHdfsWriter
         xs map actOnServiceDir(barnConf, hdfsListCache)
   }
 
+ /**
+  * This routine concatenates files it has received from barn-agents
+  * and ships them as a single file to HDFS
+  *
+  * In order to ensure data is sent to HDFS exactly once, this
+  * routine encodes timestamps in the filename of the files it has locally
+  * and on HDFS. When creating a candidate list of files to concatenate and send
+  * to HDFS, it first checks the timestamp of the file available on HDFS.
+  * It then filters out local files with timestamps smaller then the file
+  * timestamp available on HDFS.
+  */
   def actOnServiceDir(barnConf: BarnConf, hdfsListCache: HdfsListCache)
                      (serviceDir : Dir) = {
 
     reportOngoingSync {
 
     val result = for {
-      serviceInfo <- decodeServiceInfo(serviceDir)
-      fs          <- createLazyFileSystem(barnConf.hdfsEndpoint)
-      localFiles  <- listSortedLocalFiles(serviceDir, excludeList)
-      totalReadySize <- sumFileSizes(localFiles).right
-      lookBack    <- earliestLookbackDate(localFiles, maxLookBackDays)
+      serviceInfo <- decodeServiceInfo(serviceDir).right
+
+      fs          <- createLazyFileSystem(barnConf.hdfsEndpoint).right
+
+      // Produce a List[File] of local files sorted by svlogd generated timestamp
+      localFiles  <- listSortedLocalFiles(serviceDir, excludeList).right
+
+      totalReadySize <- Right(sumFileSizes(localFiles)).right
+
+      // the smallest (oldests) timestamp of local files or maxLookBack timestamp
+      lookBack    <- earliestLookbackDate(localFiles, maxLookBackDays).right
+
+      // Produces a shipping plan which is just a case class containing:
+      // hdfsDir, hdfsTempDir, lastTaistamp
       plan        <- planNextShip(fs
                                 , serviceInfo
                                 , totalReadySize
@@ -88,18 +122,30 @@ object BarnHdfsWriter
                                 , barnConf.hdfsLogDir
                                 , barnConf.shipInterval
                                 , lookBack
-                                , hdfsListCache)
+                                , hdfsListCache).right
 
-      candidates  <- outstandingFiles(localFiles, plan lastTaistamp, maxLookBackDays)
-      concatted   <- reportCombineTime(
-                       concatCandidates(candidates, barnConf.localTempDir))
+      // candidate files are the local with timestamps smaller then the HDFS lastTaistamp
+      // but greater then maxLookBackDays
+      candidates  <- outstandingFiles(localFiles, plan lastTaistamp, maxLookBackDays).right
 
-      lastTaistamp = svlogdFileNameToTaiString(candidates.last.getName)
-      targetName_  = targetName(lastTaistamp, serviceInfo)
+      // Concatenate the candidate files into a single file on the local temp directory
+      concatted   <- Right(reportCombineTime(
+                       concatCandidates(candidates, barnConf.localTempDir))).right
 
-      _           <- ensureHdfsDir(fs, plan.hdfsDir)
-      _           <- ensureHdfsDir(fs, plan.hdfsTempDir)
+      lastTaistamp = Right(svlogdFileNameToTaiString(candidates.last.getName)).right
 
+      // Generate the filename for the final HDFS destination
+      targetName_  = Right(targetName(lastTaistamp, serviceInfo)).right
+
+      // Create the target HDFS final destination directory
+      _           <- ensureHdfsDir(fs, plan.hdfsDir).right
+
+      // Create the temporary HDFS destination directory
+      _           <- ensureHdfsDir(fs, plan.hdfsTempDir).right
+
+      // Write the local concatenated file to the HDFS temporary
+      // directory and then perform an atomic rename of that file
+      // to it's final destination
       _           <- reportShipTime(
                       atomicShipToHdfs(fs
                                     , concatted
@@ -107,11 +153,14 @@ object BarnHdfsWriter
                                     , targetName_
                                     , plan hdfsTempDir))
 
-      shippedTS   <- svlogdFileTimestamp(candidates last)
+      // Get the largest timestamp of the files to ship
+      shippedTS   <- svlogdFileTimestamp(candidates last).right
+
+      // Delete the local intermediary files
       _           <- cleanupLocal(serviceDir
                                 , shippedTS
                                 , minMB
-                                , excludeList)
+                                , excludeList).right
     } yield ()
 
     result.leftMap( _ =>
