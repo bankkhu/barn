@@ -8,11 +8,10 @@ import placement._
 import org.apache.hadoop.conf.{Configuration => HadoopConf}
 import org.joda.time._
 
-/**
- * This singleton defines the main barn-hdfs routine which is responsible
- * for looking at list of files it has received from barn-agents, comparing
- * to what is already on HDFS and transfering the difference.
- */
+/** This singleton defines the main barn-hdfs routine which is responsible
+  * for looking at list of files it has received from barn-agents, comparing
+  * to what is already on HDFS and transfering the difference.
+  */
 object BarnHdfsWriter
   extends App
   with Logging
@@ -30,10 +29,8 @@ object BarnHdfsWriter
   val maxReadySize = 1 * 1024 * 1024 * 1024 // 1GB
   val excludeList = List("""^\..*""") //Exclude files starting with dot (temp)
 
-  /**
-   * Load the barn configuration and launch the synchronization
-   * routine on the set of subdirectories.
-   */
+  // Load the barn configuration and launch the synchronization
+  // routine on the set of subdirectories.
   loadConf(args) { barnConf => {
 
     enableGanglia(barnConf.appName
@@ -55,10 +52,9 @@ object BarnHdfsWriter
     }
   }}
 
-  /**
-   * This routing here is responsible for launching one
-   * or many actOnServiceDir threads
-   */
+  /** This routing here is responsible for launching one
+    * or many actOnServiceDir threads
+    */
   def syncRootLogDir(barnConf: BarnConf)(dirs: List[Dir])
   : Unit = dirs match {
 
@@ -84,17 +80,16 @@ object BarnHdfsWriter
         xs map actOnServiceDir(barnConf, hdfsListCache)
   }
 
- /**
-  * This routine concatenates files it has received from barn-agents
-  * and ships them as a single file to HDFS
-  *
-  * In order to ensure data is sent to HDFS exactly once, this
-  * routine encodes timestamps in the filename of the files it has locally
-  * and on HDFS. When creating a candidate list of files to concatenate and send
-  * to HDFS, it first checks the timestamp of the file available on HDFS.
-  * It then filters out local files with timestamps smaller then the file
-  * timestamp available on HDFS.
-  */
+ /** Concatenates files it has received from barn-agents
+   * and ships them as a single file to HDFS
+   *
+   * In order to ensure data is sent to HDFS exactly once, this
+   * routine decodes timestamps from the filename of the local files and
+   * on HDFS. When creating a candidate list of files to concatenate and send
+   * to HDFS, it first checks the timestamp of the file available on HDFS.
+   * It then filters out local files with timestamps earlier then the file
+   * timestamp available on HDFS.
+   */
   def actOnServiceDir(barnConf: BarnConf, hdfsListCache: HdfsListCache)
                      (serviceDir : Dir) = {
 
@@ -110,7 +105,7 @@ object BarnHdfsWriter
 
       totalReadySize <- Right(sumFileSizes(localFiles)).right
 
-      // the smallest (oldests) timestamp of local files or maxLookBack timestamp
+      // The earliest timestamp of local files or maxLookBack timestamp
       lookBack    <- earliestLookbackDate(localFiles, maxLookBackDays).right
 
       // Produces a shipping plan which is just a case class containing:
@@ -124,8 +119,8 @@ object BarnHdfsWriter
                                 , lookBack
                                 , hdfsListCache).right
 
-      // candidate files are the local with timestamps smaller then the HDFS lastTaistamp
-      // but greater then maxLookBackDays
+      // candidate files are the local with timestamps earlier then the HDFS lastTaistamp
+      // but later then maxLookBackDays
       candidates  <- outstandingFiles(localFiles, plan lastTaistamp, maxLookBackDays).right
 
       // Concatenate the candidate files into a single file on the local temp directory
@@ -134,7 +129,8 @@ object BarnHdfsWriter
 
       lastTaistamp = Right(svlogdFileNameToTaiString(candidates.last.getName)).right
 
-      // Generate the filename for the final HDFS destination
+      // Generate the filename for the final HDFS destination which includes
+      // a taistamp of the latest file to be combined
       targetName_  = Right(targetName(lastTaistamp, serviceInfo)).right
 
       // Create the target HDFS final destination directory
