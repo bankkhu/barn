@@ -20,15 +20,12 @@ trait HdfsPlacementStrategy
               , path: HdfsDir
               , hdfsListCache: HdfsListCache)
   : Either[barn.BarnError, Either[BarnError, List[PlacedFileInfo]]] = {
-    hdfsListCache.get(path) match {
-      case Some(x) => x
-      case None => {
+    hdfsListCache.get(path).getOrElse {
         val listResult = listHdfsFiles(fs, path).right.map(x => collapseValidate(x map getPlacedFileInfo))
         hdfsListCache += ( path -> listResult)
-        info(s"I called LS on $path and have a cache of size " + hdfsListCache.size)
+        info(s"I called LS on $path and have a cache of size ${hdfsListCache.size}")
         listResult
       }
-    }
   }
 
   def planNextShip(fs: LazyHdfsFileSystem

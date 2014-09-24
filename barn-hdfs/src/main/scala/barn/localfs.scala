@@ -8,7 +8,7 @@ trait LocalFS {
   def listSubdirectories(dir: Dir)
   : Either[BarnError, List[Dir]]
   = validate(Right(dir.listFiles.toList.filter(x => x.isDirectory)),
-    "Can't get list of local services directories on: " + dir)
+    s"Can't get list of local services directories on: $dir")
 
   def sumFileSizes(files: List[File]) : Long = {
     files.map(_.length).sum
@@ -22,6 +22,6 @@ trait LocalFS {
        .filterNot(x => exclude.foldLeft(false) {
           (res, pattern) => res || x.getName.matches(pattern) })
        .sorted)
-  , "Can't list local files on: " + dir)
+  , s"Can't list local files on: $dir")
 
 }

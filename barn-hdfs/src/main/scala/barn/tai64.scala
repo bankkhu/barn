@@ -7,7 +7,7 @@ trait Tai64 {
   import org.joda.time._
   import org.apache.commons.lang.StringUtils.leftPad
 
-  val baseDate = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeZone.UTC);
+  val baseDate = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeZone.UTC)
   val taiBase = 4611686018427387904L
 
   def convertDateToTai64(time: DateTime) : String = {
@@ -65,4 +65,3 @@ trait Tai64 {
 
 
 }
-

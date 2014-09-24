@@ -74,12 +74,7 @@ package object barn {
 
   def tap[A](a: A)(f: A => Unit) : A = {f(a); a}
 
-  object -> {
-    def unapply[A, B](pair: (A, B)): Option[(A, B)] =
-      Some(pair)
-  }
-
-  implicit def errorConcat(a:String, b:String) = a + " and " + b
+  implicit def errorConcat(a:String, b:String) = s"$a and $b"
   implicit def errorConcat(a:BarnError, b:BarnError) = CombinedError(a,b)
 
   def collapseValidate[A, B](v: List[Either[A, B]])
@@ -91,7 +86,7 @@ package object barn {
     }
 
     errors match {
-      case Nil => Right(values)
+      case Nil        => Right(values)
       case head::tail => Left(tail.fold(head)(op))
     }
   }

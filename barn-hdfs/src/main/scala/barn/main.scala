@@ -29,15 +29,17 @@ object BarnHdfsWriter
                , GangliaOpts(barnConf.gangliaHost
                            , barnConf.gangliaPort))
 
-    enableJMX();
+    enableJMX()
 
     continually(() => listSubdirectories(barnConf.localLogDir)).iterator
       .foreach { listDirs => {
 
         info("Round of sync started.")
 
-        listDirs().fold(logBarnError("List dirs in" + barnConf.localLogDir)
-                      , syncRootLogDir(barnConf))
+        listDirs() match {
+          case Left(err) => logBarnError(s"List dirs in ${barnConf.localLogDir}")(err)
+          case Right(lst) => syncRootLogDir(barnConf)(lst)
+        }
 
         info("Round of sync finished.")
       }
@@ -118,7 +120,7 @@ object BarnHdfsWriter
                                 , minMB
                                 , excludeList))
 
-    result.left.map(reportError("Sync of " + serviceDir + "") _)
+    result.left.map(reportError(s"Sync of $serviceDir") _)
 
     }
   }
@@ -149,16 +151,15 @@ object BarnHdfsWriter
 
     lastTaistamp match {
       case Some(taistamp) =>
-        localFiles dropWhile(f => {
-
+        localFiles dropWhile { f =>
             val fileTaistring = svlogdFileNameToTaiString(f getName)
 
             fileTaistring <= taistamp ||  //TODO Deduplicate me with the case below
               Tai64.convertTai64ToTime(fileTaistring).isBefore(maxLookBackTime)
 
-          }) match {
+          } match {
             case Nil => Left(NothingToSync("No local files left to sync."))
-            case x => Right(x)
+            case x   => Right(x)
           }
       case None =>
         localFiles.dropWhile(f =>    //TODO Deduplicate me with the case above
@@ -166,7 +167,7 @@ object BarnHdfsWriter
             svlogdFileNameToTaiString(f getName))
               .isBefore(maxLookBackTime)) match {
                 case Nil => Left(NothingToSync("No local files left to sync."))
-                case x => Right(x)
+                case x   => Right(x)
                }
     }
   }

@@ -16,7 +16,7 @@ object FileCombiner extends FileCombiner
 
 trait FileCombiner extends Logging {
 
-  val utf8 = Charset.forName("UTF-8");
+  val utf8 = Charset.forName("UTF-8")
 
   //Combines files into a single file
   def combineFiles(localFiles: List[File], outputFile: File) = {
@@ -33,7 +33,7 @@ trait FileCombiner extends Logging {
     val decoder = utf8.newDecoder()
     decoder.onMalformedInput(CodingErrorAction.REPLACE)
     decoder.replaceWith("?")
-    return decoder
+    decoder
   }
 
   //Combines local files into a local combined sequence file
@@ -57,7 +57,7 @@ trait FileCombiner extends Logging {
 
     val bufferSize = 20 * 1024 * 1024
 
-    localFiles.foreach( file => {
+    localFiles.foreach { file => 
       val bufferedSource = new BufferedReader(
                              new InputStreamReader(
                                new FileInputStream(file), decoder)
@@ -68,7 +68,7 @@ trait FileCombiner extends Logging {
                                , new BW(bufferedSource.readLine.getBytes(utf8)))
       finally bufferedSource.close
 
-    })
+    }
 
     outputWriter.close
     fs.close
@@ -79,12 +79,10 @@ trait FileCombiner extends Logging {
   : Either[BarnError, File] = validate ({
     val combinedName = RandomStringUtils.randomAlphanumeric(20)
     val combinedLocalFile = new File(targetDir, combinedName)
-    info("Combining " + candidates.size + " ("+ candidates.head + " and ... )" +
-      " into " + combinedLocalFile)
+    info(s"Combining ${candidates.size} (${candidates.head} and ... ) into $combinedLocalFile")
     combineIntoSeqFile(candidates, combinedLocalFile)
     Right(combinedLocalFile)
-  } , "Can't combine files into a sequence file." +
-      " Candidates to combine: " + candidates)
+  } , s"Can't combine files into a sequence file. Candidates to combine: $candidates")
 
 
   import org.apache.hadoop.io.compress.CompressionCodec
@@ -103,5 +101,3 @@ trait FileCombiner extends Logging {
   }
 
 }
-
-

@@ -11,12 +11,12 @@ trait Logging {
 
   import java.lang.Thread.{currentThread => thread}
 
-  def info(s: String) = println("INFO [" + thread.getName() + "] " + s)
-  def warn(s: String) = println("WARN [" + thread.getName() + "] "+ s)
-  def error(s: String) = println("ERROR [" + thread.getName() + "] "+ s)
+  def info(s: String) = println(s"INFO [${thread.getName()}] $s")
+  def warn(s: String) = println(s"WARN [$thread.getName()] $s")
+  def error(s: String) = println(s"ERROR [$thread.getName()] $s")
 
   def logBarnError(context: String)(s: BarnError)
-  = error("[" + context + "] " + s.toString)
+  = error(s"[$context] ${s.toString}")
 
 }
 

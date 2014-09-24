@@ -27,7 +27,7 @@ trait Instruments extends InstrumentedBuilder {
   def reportShippingStarted = currentlyShipping += 1
   def reportShippingEnded = currentlyShipping -= 1
 
-  def reportOngoingSync[A](f: => A) {
+  def reportOngoingSync[A](f: => A): Unit = {
     reportShippingStarted
     try f finally reportShippingEnded
   }
@@ -47,16 +47,16 @@ trait Instruments extends InstrumentedBuilder {
     val reporter = JmxReporter.forRegistry(metricRegistry)
                               .convertRatesTo(TimeUnit.MINUTES)
                               .convertDurationsTo(TimeUnit.MILLISECONDS)
-                              .build();
-    reporter.start();
+                              .build()
+    reporter.start()
   }
 
   def enableGanglia(app: String, opts: GangliaOpts): Unit = {
-    val ganglia = new GMetric(opts.host, opts.port, GMetric.UDPAddressingMode.MULTICAST, 1);
+    val ganglia = new GMetric(opts.host, opts.port, GMetric.UDPAddressingMode.MULTICAST, 1)
     val reporter = GangliaReporter.forRegistry(metricRegistry)
                                   .convertRatesTo(TimeUnit.MINUTES)
                                   .convertDurationsTo(TimeUnit.MILLISECONDS)
-                                  .build(ganglia);
-     reporter.start(opts.interval, TimeUnit.MINUTES);
+                                  .build(ganglia)
+     reporter.start(opts.interval, TimeUnit.MINUTES)
   }
 }

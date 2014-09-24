@@ -17,7 +17,7 @@ trait LocalPlacementStrategy
   = serviceDir.getName.split(delim) match {
     case Array(service, category, host) =>
       Right(LocalServiceInfo(service, host))
-    case _ => Left(InvalidNameFormat("Failed to extract service info for " + serviceDir))
+    case _ => Left(InvalidNameFormat(s"Failed to extract service info for $serviceDir"))
   }
 
   def cleanupLocal(dir: Dir,
@@ -34,20 +34,18 @@ trait LocalPlacementStrategy
 
         localFiles.dropRight(1)
                   .foldLeft((0, sumSize)) {
-          case deletedSoFar -> curSize -> file =>
+          case ((deletedSoFar, curSize), file) =>
             val ts = Tai64.convertTai64ToTime(svlogdFileNameToTaiString(file.getName))
 
-            ts.isBefore(cleanupLimit) && curSize > minMB*1024*1024 match {
-              case true =>
+            if(ts.isBefore(cleanupLimit) && curSize > minMB*1024*1024) {
                 val fileLength = file.length
                 file.delete
                 (deletedSoFar + 1) -> (curSize - fileLength)
-              case false => deletedSoFar -> curSize
-            }
+            } else deletedSoFar -> curSize
         }
       }), "Deletion of retained files failed.").right
-    } yield tap(deletion) (x => info (x._1 + " retained files deleted and " +
-                                        x._2 / (1024) + "KB remained" +
-                                        " on " + dir ))
+    } yield tap(deletion) { case(k, v) =>
+      info(s"$k retained files deleted and ${v / 1024}KB remained on $dir")
+  }
 }
 

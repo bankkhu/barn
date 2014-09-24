@@ -25,12 +25,12 @@ trait Hadoop extends Logging {
   def ensureHdfsDir(fs: HdfsFileSystem, hdfsDir: HdfsDir)
   : Either[BarnError, HdfsDir] = validate(
     Right(tap(hdfsDir)(createPath(fs, _)))
-  , "Can't ensure/create dirs on hdfs:"  + hdfsDir)
+  , s"Can't ensure/create dirs on hdfs: $hdfsDir")
 
   def pathExists(fs: HdfsFileSystem, hdfsDir: HdfsDir)
   : Either[BarnError, Boolean] = validate(
     Right(fs.exists(hdfsDir))
-  , "Can't check existence of the path:" + hdfsDir)
+  , s"Can't check existence of the path: $hdfsDir")
 
   def createPath(fs: HdfsFileSystem, path: Path) : Boolean = fs.mkdirs(path)
 
@@ -47,12 +47,12 @@ trait Hadoop extends Logging {
   = validate(
       catching(classOf[FileNotFoundException])
       .either(fs.listStatus(hdfsDir)).fold(
-        _ => Left(FileNotFound("Path " + hdfsDir + " doesn't exist to list")),
+        _ => Left(FileNotFound(s"Path $hdfsDir doesn't exist to list")),
         _ match {
-          case null => Left(FileNotFound("Path " + hdfsDir + " doesn't exist to list"))
+          case null => Left(FileNotFound(s"Path $hdfsDir doesn't exist to list"))
           case fileList => Right(fileList.toList.filterNot(_.isDir).map(_.getPath))
         })
-   , "Can't get list of files on HDFS dir: " + hdfsDir)
+   , s"Can't get list of files on HDFS dir: $hdfsDir")
 
   def randomName() : String = scala.util.Random.alphanumeric.take(40).mkString
 
@@ -78,15 +78,15 @@ trait Hadoop extends Logging {
     fs.rename(src, targetHdfsFile) match {
       case true => Right(targetHdfsFile)
       case false =>
-        Left(RenameFailed("Rename " + src + " to " + targetHdfsFile + " failed."))
+        Left(RenameFailed(s"Rename $src to $targetHdfsFile failed."))
     }}, "Rename failed due to IO error")
 
   def shipToHdfs(fs: HdfsFileSystem, localFile: File, targetFile: HdfsFile)
   : Either[BarnError, HdfsFile] = validate ({
-    info("Shipping " + localFile + " to " + targetFile + " @ " + fs.getUri)
+    info(s"Shipping $localFile to $targetFile @ ${fs.getUri}")
     fs.copyFromLocalFile(true, true, new HdfsFile(localFile.getPath), targetFile)
     Right(targetFile)
-  }, "Can't ship to hdfs from " + localFile + " to " + targetFile )
+  }, s"Can't ship to hdfs from $localFile to $targetFile")
 
 }
 

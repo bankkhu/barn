@@ -58,10 +58,7 @@ trait ParamParser
       else
         body(config)
 
-    } getOrElse { false }
+    } getOrElse false
   }
 
-
-
 }
-

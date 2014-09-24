@@ -10,7 +10,7 @@ trait DateGenerators {
   import org.joda.time._
   import Tai64._
 
-  val baseDate = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeZone.UTC);
+  val baseDate = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeZone.UTC)
 
   def genDate(after: DateTime = baseDate) = for {
     second <- choose(1, 60 * 365 * 24 * 60 * 60)
