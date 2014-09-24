@@ -6,9 +6,6 @@ import org.scalatest.prop.Checkers
 
 class BarnStepsSuite extends FunSuite with Checkers {
 
-  import scalaz._
-  import Scalaz._
-
   import org.scalacheck.Arbitrary._
   import org.scalacheck.Prop._
 
@@ -18,11 +15,11 @@ class BarnStepsSuite extends FunSuite with Checkers {
     def f = throw new RuntimeException("hola")
     val error = "function didn't run successfully"
     val result = validate(f, error, false)
-    assert(result == -\/(ThrownException(error)))
+    assert(result == Left(ThrownException(error)))
   }
 
   test("Validate should return success if no exception happened") {
-    def f = 1.right
+    def f = Right(1)
     val error = "function didn't run successfully"
     val result = validate(f, error)
     assert(result == f)

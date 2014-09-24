@@ -1,8 +1,6 @@
 package barn
 
 import Stream.continually
-import scalaz._
-import Scalaz._
 import placement._
 
 import org.apache.hadoop.conf.{Configuration => HadoopConf}
@@ -97,7 +95,6 @@ object BarnHdfsWriter
 
     val result = for {
       serviceInfo <- decodeServiceInfo(serviceDir).right
-
       fs          <- createLazyFileSystem(barnConf.hdfsEndpoint).right
 
       // Produce a List[File] of local files sorted by svlogd generated timestamp
@@ -118,20 +115,19 @@ object BarnHdfsWriter
                                 , barnConf.shipInterval
                                 , lookBack
                                 , hdfsListCache).right
-
       // candidate files are the local with timestamps earlier then the HDFS lastTaistamp
       // but later then maxLookBackDays
       candidates  <- outstandingFiles(localFiles, plan lastTaistamp, maxLookBackDays).right
 
       // Concatenate the candidate files into a single file on the local temp directory
-      concatted   <- Right(reportCombineTime(
-                       concatCandidates(candidates, barnConf.localTempDir))).right
+      concatted   <-  reportCombineTime(
+                       concatCandidates(candidates, barnConf.localTempDir)).right
 
-      lastTaistamp = Right(svlogdFileNameToTaiString(candidates.last.getName)).right
+      lastTaistamp <- Right(svlogdFileNameToTaiString(candidates.last.getName)).right
 
       // Generate the filename for the final HDFS destination which includes
       // a taistamp of the latest file to be combined
-      targetName_  = Right(targetName(lastTaistamp, serviceInfo)).right
+      targetName_  <- Right(targetName(lastTaistamp, serviceInfo)).right
 
       // Create the target HDFS final destination directory
       _           <- ensureHdfsDir(fs, plan.hdfsDir).right
@@ -147,7 +143,7 @@ object BarnHdfsWriter
                                     , concatted
                                     , plan hdfsDir
                                     , targetName_
-                                    , plan hdfsTempDir))
+                                    , plan hdfsTempDir)).right
 
       // Get the largest timestamp of the files to ship
       shippedTS   <- svlogdFileTimestamp(candidates last).right
@@ -159,13 +155,13 @@ object BarnHdfsWriter
                                 , excludeList).right
     } yield ()
 
-    result.leftMap( _ =>
+    result.left.map( _ =>
                      cleanupLocal(serviceDir
                                 , DateTime.now.minusDays(maxLookBackDays+1)
                                 , minMB
                                 , excludeList))
 
-    result.leftMap(reportError("Sync of " + serviceDir + "") _)
+    result.left.map(reportError("Sync of " + serviceDir + "") _)
 
     }
   }
@@ -179,19 +175,19 @@ object BarnHdfsWriter
   }
 
   def earliestLookbackDate(localFiles: List[File], maxLookBackDays: Int)
-  : BarnError \/ DateTime = {
+  : Either[BarnError, DateTime] = {
     val maxLookBackTime = DateTime.now.minusDays(maxLookBackDays)
 
     localFiles.headOption match {
       case Some(f) =>
-        svlogdFileTimestamp(f).map(ts =>
+        svlogdFileTimestamp(f).right.map(ts =>
           if(ts.isBefore(maxLookBackTime)) maxLookBackTime else ts)
-      case None => maxLookBackTime.right
+      case None => Right(maxLookBackTime)
     }
   }
 
   def outstandingFiles(localFiles: List[File], lastTaistamp: Option[String], maxLookBackTime: Int)
-  : BarnError \/ List[File] = {
+  : Either[BarnError, List[File]] = {
     val maxLookBackTime = DateTime.now.minusDays(maxLookBackDays).minusDays(1).toDateMidnight
 
     lastTaistamp match {
@@ -204,16 +200,16 @@ object BarnHdfsWriter
               Tai64.convertTai64ToTime(fileTaistring).isBefore(maxLookBackTime)
 
           }) match {
-            case Nil => NothingToSync("No local files left to sync.") left
-            case x => x right
+            case Nil => Left(NothingToSync("No local files left to sync."))
+            case x => Right(x)
           }
       case None =>
         localFiles.dropWhile(f =>    //TODO Deduplicate me with the case above
           Tai64.convertTai64ToTime(
             svlogdFileNameToTaiString(f getName))
               .isBefore(maxLookBackTime)) match {
-                case Nil => NothingToSync("No local files left to sync.") left
-                case x => x right
+                case Nil => Left(NothingToSync("No local files left to sync."))
+                case x => Right(x)
                }
     }
   }

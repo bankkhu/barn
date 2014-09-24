@@ -4,8 +4,6 @@ package object barn {
   import org.apache.hadoop.fs.Path
   import scala.util.control.Exception._
   import org.apache.commons.lang.exception.ExceptionUtils._
-  import scalaz._
-  import Scalaz._
   import org.apache.hadoop.conf.{Configuration => HadoopConf}
 
   /*
@@ -60,19 +58,19 @@ package object barn {
                         month: Int,
                         day: Int)
 
-  type HdfsListCacheJ = ConcurrentHashMap[HdfsDir, \/[BarnError, BarnError \/ List[PlacedFileInfo]]]
-  type HdfsListCache = concurrent.Map[HdfsDir, \/[BarnError, \/[BarnError, List[PlacedFileInfo]]]]
+  type HdfsListCacheJ = ConcurrentHashMap[HdfsDir, Either[BarnError, Either[BarnError, List[PlacedFileInfo]]]]
+  type HdfsListCache = concurrent.Map[HdfsDir, Either[BarnError, Either[BarnError, List[PlacedFileInfo]]]]
 
-  def validate[U](body: => BarnError \/ U,
+  def validate[U](body: => Either[BarnError, U],
                   detail: String = null,
                   carryException: Boolean = true)
-  : BarnError \/ U
-  = allCatch either body fold ( exception => ThrownException(
+  : Either[BarnError, U]
+  = allCatch either body fold ( exception => Left(ThrownException(
     detail match {
       case null => getStackTrace(exception)
       case sth if carryException => (detail + lineDelim + getStackTrace(exception))
       case sth if !carryException => (detail)
-    }).left , identity)
+    })), identity)
 
   def tap[A](a: A)(f: A => Unit) : A = {f(a); a}
 
@@ -84,17 +82,17 @@ package object barn {
   implicit def errorConcat(a:String, b:String) = a + " and " + b
   implicit def errorConcat(a:BarnError, b:BarnError) = CombinedError(a,b)
 
-  def collapseValidate[A, B](v: List[A \/ B])
+  def collapseValidate[A, B](v: List[Either[A, B]])
                             (implicit op : (A,A) => A)
-  : A \/ List[B]= {
+  : Either[A, List[B]] = {
     val (errors, values) = v.foldLeft((List.empty[A], List.empty[B])) {
       case ((errors, vals), el) =>
         el.fold(x => ( errors :+ x , vals), x => (errors, vals :+ x) )
     }
 
     errors match {
-      case Nil => values.right
-      case head::tail => tail.fold(head)(op).left
+      case Nil => Right(values)
+      case head::tail => Left(tail.fold(head)(op))
     }
   }
 
