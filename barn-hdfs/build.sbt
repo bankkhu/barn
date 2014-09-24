@@ -26,7 +26,6 @@ libraryDependencies := Seq(
 , "commons-lang"      %  "commons-lang" % "2.4"
 , "org.scalatest"     % "scalatest_2.10"    % "2.1.0"  % "test,slow"
 , "org.scalacheck"    % "scalacheck_2.10"   % "1.11.3" % "test,slow"
-, "org.scalaz"        % "scalaz-core_2.10"  % "7.0.6"
 , "com.codahale.metrics" % "metrics-ganglia"  % "3.0.2"
 , "com.codahale.metrics" % "metrics-servlet"  % "3.0.2"
 , "nl.grons"          % "metrics-scala_2.10"  % "3.0.2"

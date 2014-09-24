@@ -1,8 +1,6 @@
 package barn.placement
 
 import org.joda.time._
-import scalaz._
-import Scalaz._
 import scala.math.Ordering
 import barn._
 import org.apache.hadoop.fs.{FileSystem => HdfsFileSystem}
@@ -21,11 +19,11 @@ trait HdfsPlacementStrategy
   def cachingLs(fs: LazyHdfsFileSystem
               , path: HdfsDir
               , hdfsListCache: HdfsListCache)
-  : \/[barn.BarnError, \/[BarnError, List[PlacedFileInfo]]] = {
+  : Either[barn.BarnError, Either[BarnError, List[PlacedFileInfo]]] = {
     hdfsListCache.get(path) match {
       case Some(x) => x
       case None => {
-        val listResult = listHdfsFiles(fs, path).map(x => collapseValidate(x map getPlacedFileInfo))
+        val listResult = listHdfsFiles(fs, path).right.map(x => collapseValidate(x map getPlacedFileInfo))
         hdfsListCache += ( path -> listResult)
         info(s"I called LS on $path and have a cache of size " + hdfsListCache.size)
         listResult
@@ -41,24 +39,24 @@ trait HdfsPlacementStrategy
                  , shipInterval: Int
                  , lookBackLowerBound: DateTime
                  , hdfsListCache: HdfsListCache)
-  : BarnError \/ ShippingPlan = {
+  : Either[BarnError, ShippingPlan] = {
 
     val hdfsTempDir = targetTempDir(baseHdfsDir)
     val hdfsDirStream = targetDirs(DateTime.now, baseHdfsDir, lookBackLowerBound)
 
     val targetHdfsDir = hdfsDirStream.head
 
-    val dirsWithRelevantHdfsFilesStream = for {
+    val dirsWithRelevantHdfsFilesStream: Stream[Either[BarnError, List[PlacedFileInfo]]] = for {
         each           <- hdfsDirStream
         relevantFiles  <- cachingLs(fs, each , hdfsListCache) match {
-			      case -\/(FileNotFound(_)) => None
-			      case -\/(a) => -\/(a) some
-            case \/-(-\/(a)) => -\/(a) some
-			      case \/-(\/-(Nil)) => None
-			      case \/-(a) =>
+			      case Left(FileNotFound(_)) => None
+			      case Left(a) => Some(Left(a))
+          case Right(Left(a)) => Some(Left(a))
+			      case Right(Right(Nil)) => None
+			      case Right(a) =>
 				logsForService(serviceInfo, a) match {
-				  case \/-(Nil) => None
-				  case otherwise => otherwise some
+				  case Right(Nil) => None
+				  case otherwise => Some(otherwise)
 				}
 			  }
       } yield relevantFiles
@@ -66,40 +64,40 @@ trait HdfsPlacementStrategy
     for {
        hdfsFilesFileInfo    <- dirsWithRelevantHdfsFilesStream
                                 .headOption
-                                .getOrElse(List.empty[PlacedFileInfo].right)
+                                .getOrElse(Right(List.empty[PlacedFileInfo])).right
 
-       lastShippedTaistamp   = getLastShippedTaistamp(hdfsFilesFileInfo, serviceInfo)
-       lastShippedTimestamp  = lastShippedTaistamp.map(Tai64.convertTai64ToTime(_))
+       lastShippedTaistamp   <- Right(getLastShippedTaistamp(hdfsFilesFileInfo, serviceInfo)).right
+       lastShippedTimestamp  <- Right(lastShippedTaistamp.map(Tai64.convertTai64ToTime(_))).right
 
        _                    <- isShippingTime(lastShippedTimestamp
                                             , shipInterval
                                             , totalReadySize
-                                            , maxReadySize)
+                                            , maxReadySize).right
 
     } yield ShippingPlan(targetHdfsDir, hdfsTempDir, lastShippedTaistamp)
 
   }
 
   def logsForService(serviceInfo: LocalServiceInfo,
-                     hdfsFilesPlacedInfos: BarnError \/ List[PlacedFileInfo])
-  : BarnError \/ List[PlacedFileInfo] = for {
-    hdfsFilesPlacedInfos_ <- hdfsFilesPlacedInfos
-    hdfsFilesFiltered      = filter(hdfsFilesPlacedInfos_, serviceInfo)
+                     hdfsFilesPlacedInfos: Either[BarnError, List[PlacedFileInfo]])
+  : Either[BarnError, List[PlacedFileInfo]] = for {
+    hdfsFilesPlacedInfos_ <- hdfsFilesPlacedInfos.right
+    hdfsFilesFiltered     <- Right(filter(hdfsFilesPlacedInfos_, serviceInfo)).right
   } yield hdfsFilesFiltered
 
   def getLastShippedTaistamp(hdfsFiles: List[PlacedFileInfo], serviceInfo: LocalServiceInfo)
   : Option[String] = sorted(hdfsFiles, serviceInfo).lastOption.map(_.taistamp)
 
   def isShippingTime(lastShippedTimestamp: Option[DateTime], shippingInterval: Int, totalReadySize: Long, maxReadySize: Long)
-  : BarnError \/ Unit
+  : Either[BarnError, Unit]
   = lastShippedTimestamp match {
     case Some(lastTimestamp) =>
       (enoughTimePast(lastTimestamp, shippingInterval) ||
        totalReadySize > maxReadySize) match {
-        case true => () right
-        case false => SyncThrottled("I synced not long ago.") left
+        case true => Right(())
+        case false => Left(SyncThrottled("I synced not long ago."))
       }
-    case None => ().right
+    case None => Right(())
   }
 
   def targetName(taistamp : String, serviceInfo: LocalServiceInfo) :String = {
@@ -140,13 +138,13 @@ trait HdfsPlacementStrategy
     "([0-9]{4}),([0-9]{2}),([0-9]{2}),(.*),(.*),(.*).seq".r
 
   def getPlacedFileInfo(hdfsFile: HdfsFile)
-  : BarnError \/ PlacedFileInfo
+  : Either[BarnError, PlacedFileInfo]
   = validate(
     hdfsFile.getName match {
       case hdfsFileMatcher(year, month, day, service, host, taistamp) =>
-        PlacedFileInfo(DateBucket(year.toInt, month.toInt, day.toInt)
-                                , host, service, taistamp) right
-      case _ => InvalidNameFormat("Invalid HdfsFile name format " + hdfsFile) left
+        Right(PlacedFileInfo(DateBucket(year.toInt, month.toInt, day.toInt)
+                                , host, service, taistamp))
+      case _ => Left(InvalidNameFormat("Invalid HdfsFile name format " + hdfsFile))
     }, "Invalid HdfsFile name format " + hdfsFile)
 
   def targetDirs(base: DateTime, baseHdfsDir: HdfsDir, lowerBound: DateTime)

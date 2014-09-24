@@ -1,8 +1,5 @@
 package barn
 
-import scalaz._
-import Scalaz._
-
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -27,7 +24,7 @@ class HdfsPlacementSuite
 
   val conf = tap(new Configuration()){_.set("fs.default.name"
                                           , "hdfs://localhost:9000")}
-  val fs = Hadoop.createLazyFileSystem(conf).toOption.get
+  val fs = Hadoop.createLazyFileSystem(conf).right.get
 
   var hdfsListCache : HdfsListCache  = _
 
@@ -56,8 +53,8 @@ class HdfsPlacementSuite
                        , lookBack
                        , hdfsListCache) match {
 
-              case -\/(e:BarnError) => false :| "Failed to plan to ship with " + e
-              case \/-(shippingPlan:ShippingPlan) =>
+              case Left(e:BarnError) => false :| "Failed to plan to ship with " + e
+              case Right(shippingPlan:ShippingPlan) =>
 
                 val now = DateTime.now
                 val correctPlan =
@@ -108,8 +105,8 @@ class HdfsPlacementSuite
                      , lastShippedDate.minusDays(1)
                      , hdfsListCache) match {
 
-            case -\/(e:BarnError) => false :| "Failed to plan to ship with " + e
-            case \/-(shippingPlan:ShippingPlan) =>
+            case Left(e:BarnError) => false :| "Failed to plan to ship with " + e
+            case Right(shippingPlan:ShippingPlan) =>
 
               (shippingPlan == correctPlan) :| "Wrong plan deduced. Got:" +
                                               shippingPlan +
@@ -151,10 +148,10 @@ class HdfsPlacementSuite
                      , shippingInterval
                      , lastShippedDate.minusDays(1)
                      , hdfsListCache) match {
-            case -\/(_:SyncThrottled) =>
+            case Left(_:SyncThrottled) =>
               shouldThrottle :| "Sync throttled though it shouldn't have been"
-            case -\/(e:BarnError) => false :| "Failed to plan to ship with " + e
-            case \/-(shippingPlan:ShippingPlan) =>
+            case Left(e:BarnError) => false :| "Failed to plan to ship with " + e
+            case Right(shippingPlan:ShippingPlan) =>
 
               val correctPlan = ShippingPlan(targetDir
                                            , targetTempDir(baseDir)

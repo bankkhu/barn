@@ -1,8 +1,5 @@
 package barn
 
-import scalaz._
-import Scalaz._
-
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.prop.Checkers

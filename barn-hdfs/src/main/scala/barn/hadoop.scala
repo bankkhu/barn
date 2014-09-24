@@ -7,8 +7,6 @@ trait Hadoop extends Logging {
   import org.apache.hadoop.util.GenericOptionsParser
   import org.apache.hadoop.fs.{Path, FileSystem => HdfsFileSystem}
   import org.apache.hadoop.conf.Configuration
-  import scalaz._
-  import Scalaz._
   import scala.util.control.Exception.catching
   import java.io.FileNotFoundException
 
@@ -25,34 +23,34 @@ trait Hadoop extends Logging {
   }
 
   def ensureHdfsDir(fs: HdfsFileSystem, hdfsDir: HdfsDir)
-  : BarnError \/ HdfsDir = validate(
-    tap(hdfsDir)(createPath(fs, _)).right
+  : Either[BarnError, HdfsDir] = validate(
+    Right(tap(hdfsDir)(createPath(fs, _)))
   , "Can't ensure/create dirs on hdfs:"  + hdfsDir)
 
   def pathExists(fs: HdfsFileSystem, hdfsDir: HdfsDir)
-  : BarnError \/ Boolean = validate(
-    fs.exists(hdfsDir).right
+  : Either[BarnError, Boolean] = validate(
+    Right(fs.exists(hdfsDir))
   , "Can't check existence of the path:" + hdfsDir)
 
   def createPath(fs: HdfsFileSystem, path: Path) : Boolean = fs.mkdirs(path)
 
   def createFileSystem(conf: Configuration)
-  : BarnError \/ HdfsFileSystem
-  = HdfsFileSystem.get(conf).right
+  : Either[BarnError, HdfsFileSystem]
+  = Right(HdfsFileSystem.get(conf))
 
   def createLazyFileSystem(conf: Configuration)
-  : BarnError \/ LazyHdfsFileSystem
-  = new LazyWrapper(HdfsFileSystem.get(conf)).right
+  : Either[BarnError, LazyHdfsFileSystem]
+  = Right(new LazyWrapper(HdfsFileSystem.get(conf)))
 
   def listHdfsFiles(fs: HdfsFileSystem, hdfsDir: HdfsDir)
-  : BarnError \/ List[HdfsFile]
+  : Either[BarnError, List[HdfsFile]]
   = validate(
       catching(classOf[FileNotFoundException])
       .either(fs.listStatus(hdfsDir)).fold(
-        _ => FileNotFound("Path " + hdfsDir + " doesn't exist to list") left,
+        _ => Left(FileNotFound("Path " + hdfsDir + " doesn't exist to list")),
         _ match {
-          case null => FileNotFound("Path " + hdfsDir + " doesn't exist to list") left
-          case fileList => fileList.toList.filterNot(_.isDir).map(_.getPath).right
+          case null => Left(FileNotFound("Path " + hdfsDir + " doesn't exist to list"))
+          case fileList => Right(fileList.toList.filterNot(_.isDir).map(_.getPath))
         })
    , "Can't get list of files on HDFS dir: " + hdfsDir)
 
@@ -63,31 +61,31 @@ trait Hadoop extends Logging {
                      , dest: HdfsDir
                      , hdfsName: String
                      , temp: HdfsDir)
-  : BarnError \/ HdfsFile
+  : Either[BarnError, HdfsFile]
   = for {
-      hdfsTempFile <- shipToHdfs(fs, src, new HdfsDir(temp, randomName))
-      renamedFile  <- atomicRenameOnHdfs(fs, hdfsTempFile, dest , hdfsName)
+      hdfsTempFile <- shipToHdfs(fs, src, new HdfsDir(temp, randomName)).right
+      renamedFile  <- atomicRenameOnHdfs(fs, hdfsTempFile, dest , hdfsName).right
   } yield renamedFile
 
   def atomicRenameOnHdfs(fs: HdfsFileSystem
                        , src: HdfsFile
                        , dest: HdfsDir
                        , newName: String)
-  : BarnError \/ HdfsFile
+  : Either[BarnError, HdfsFile]
   = validate({
     val targetHdfsFile = new HdfsFile(dest, newName)
     info("Moving " + src + " to " + targetHdfsFile + " @ "  + fs.getUri)
     fs.rename(src, targetHdfsFile) match {
-      case true => targetHdfsFile.right
+      case true => Right(targetHdfsFile)
       case false =>
-        RenameFailed("Rename " + src + " to " + targetHdfsFile + " failed.").left
+        Left(RenameFailed("Rename " + src + " to " + targetHdfsFile + " failed."))
     }}, "Rename failed due to IO error")
 
   def shipToHdfs(fs: HdfsFileSystem, localFile: File, targetFile: HdfsFile)
-  : BarnError \/ HdfsFile = validate ({
+  : Either[BarnError, HdfsFile] = validate ({
     info("Shipping " + localFile + " to " + targetFile + " @ " + fs.getUri)
     fs.copyFromLocalFile(true, true, new HdfsFile(localFile.getPath), targetFile)
-    targetFile.right
+    Right(targetFile)
   }, "Can't ship to hdfs from " + localFile + " to " + targetFile )
 
 }

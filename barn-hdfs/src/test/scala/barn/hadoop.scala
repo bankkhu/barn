@@ -12,9 +12,6 @@ class HadoopSuite
   with BeforeAndAfter
   with HadoopGenerators {
 
-  import scalaz._
-  import Scalaz._
-
   import org.scalacheck.Arbitrary._
   import org.scalacheck.Prop._
 
@@ -25,7 +22,7 @@ class HadoopSuite
 
   val conf = tap(new Configuration()){_.set("fs.default.name"
                                           , "hdfs://localhost:9000")}
-  val fs = Hadoop.createFileSystem(conf).toOption.get
+  val fs = Hadoop.createFileSystem(conf).right.get
 
   test("should correctly list files in a HDFS directory") {
     check(

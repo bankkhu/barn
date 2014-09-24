@@ -1,8 +1,5 @@
 package barn
 
-import scalaz._
-import Scalaz._
-
 import org.apache.hadoop.conf.{Configuration => HadoopConf}
 import scopt.immutable.OptionParser
 
