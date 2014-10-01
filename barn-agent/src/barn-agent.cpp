@@ -238,6 +238,5 @@ ChannelSelector<AgentChannel> create_channel_selector(const BarnConf& barn_conf)
         barn_conf.category);
   backup.source_dir = barn_conf.source_dir;
 
-  // TODO: make failover time configurable.
-  return ChannelSelector<AgentChannel>(primary, backup, 10*60);
+  return ChannelSelector<AgentChannel>(primary, backup, barn_conf.failover_timeout);
 }

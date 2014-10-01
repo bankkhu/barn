@@ -3,7 +3,7 @@
 
 .PHONY: build clean dist canary fpm test
 
-VERSION := 0.5.13
+VERSION := 0.6.1
 DEB := barn-agent_$(VERSION)_all.deb
 CANARY := barn-agent-canary_$(VERSION)_all.deb
 

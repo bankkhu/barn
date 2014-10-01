@@ -28,6 +28,8 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
           "additional sub-namespace per service")
         ("monitor_port,i", po::value<int>(&conf.monitor_port),
           "additional sub-namespace per service")
+        ("failover_timeout,i", po::value<int>(&conf.monitor_port)->default_value(10 * 60),
+          "how long before failing over to the backup barn-hdfs node")
         ("monitor_mode", po::value<bool>(&conf.monitor_mode)->default_value(false),
           "Listens on udp://localhost:monitor_port/. In this mode the rest of options are unused.");
 
