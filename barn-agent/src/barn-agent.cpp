@@ -50,6 +50,7 @@ void barn_agent_main(const BarnConf& barn_conf) {
   auto after_successful_ship = [&](ShipStatistics ship_statistics) {
     metrics.send_metric(LostDuringShip, ship_statistics.num_lost_during_ship);
     metrics.send_metric(RotatedDuringShip, ship_statistics.num_rotated_during_ship);
+    metrics.send_metric(NumFilesShipped, ship_statistics.num_shipped);
     cout << "successfully shipped " << ship_statistics.num_shipped << " files" << endl;
     channel_selector.heartbeat();
 
