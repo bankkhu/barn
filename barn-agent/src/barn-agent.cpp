@@ -24,8 +24,8 @@ static void sleep_it();
 /*
  * Main Barn Agent's loop.
  * On every iteration:
- *   - Query for outstanding candidate files to ship
- *   - Sync these files to the destination
+ *   - Query for outstanding candidate files to ship: using rsync dry-run
+ *   - Sync unshipped files to the destination
  *   - Wait for a change to the source directory using inotify
  */
 void barn_agent_main(const BarnConf& barn_conf) {

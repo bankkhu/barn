@@ -54,6 +54,7 @@ public:
       std::cout << "!!Channel: error primary down for too long, failing to backup" << std::endl;
       primary_ok = false;
       last_heartbeat_time = now;
+    // TODO: set failback seconds independent of failover
     } else if (time_since_heartbeat < seconds_before_failover) {
       // on secondary, stay there for now
     } else {
