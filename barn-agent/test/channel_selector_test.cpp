@@ -14,11 +14,11 @@ static const int FAILOVER_INTERVAL = 30;
 
 class MockChannelSelector : public ChannelSelector<int> {
 public:
-  MockChannelSelector() : ChannelSelector(PRIMARY, SECONDARY, FAILOVER_INTERVAL){
+  MockChannelSelector() : ChannelSelector(PRIMARY, SECONDARY, FAILOVER_INTERVAL) {
     last_heartbeat_time = now = 0;
   };
 
-  virtual time_t now_in_seconds() const {
+  virtual time_t now_in_seconds() const override {
     return now;
   }
 

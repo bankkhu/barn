@@ -1,8 +1,9 @@
 #include <iostream>
 #include <vector>
 #include "files.h"
-#include "process.h"
 #include "helpers.h"
+#include "process.h"
+#include "rsync.h"
 #include <unistd.h>
 #include <boost/filesystem.hpp>
 
@@ -43,6 +44,29 @@ vector<string> list_file_names(string path_, vector<string> exclusions) {
   return difference;
 }
 
-bool file_exists(std::string path_) {
+bool FileOps::file_exists(std::string path_) const {
   return fs::exists(fs::path(path_));
+}
+
+int FileOps::wait_for_new_file_in_directory(const std::string& directory, int sleep_seconds) const {
+  try {
+    return run_command("inotifywait",    // TODO use the svlogd exclude list
+        boost::assign::list_of<std::string>("inotifywait")
+                             ("--exclude")
+                             ("'\\.u'")
+                             ("--exclude")
+                             ("'lock'")
+                             ("--exclude")
+                             ("'current'")
+                             ("--timeout")
+                             ("3600")
+                             ("-q")
+                             ("-e")
+                             ("moved_to")
+                             (directory + "/")).first;
+  } catch (const boost::filesystem::filesystem_error& ex) {
+    cout << "You appear not having inotifywait, sleeping instead."
+         << ex.what() << endl;
+    sleep(sleep_seconds);
+  }
 }

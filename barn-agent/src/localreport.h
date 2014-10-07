@@ -38,8 +38,18 @@ class Metrics {
       category(category)
   {};
 
-  void send_metric(const std::string& key, int value);
+  virtual void send_metric(const std::string& key, int value) const;
 };
+
+/**
+ * Used to disable metrics sending.
+ */
+class NoOpMetrics : public Metrics {
+public:
+  NoOpMetrics() : Metrics(0, "", "") {};
+  virtual void send_metric(const std::string& key, int value) const override {};
+};
+
 
 /*
  * Used by barn-monitor to receive telemtry.
