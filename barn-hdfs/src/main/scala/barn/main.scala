@@ -10,6 +10,8 @@ import org.joda.time._
   * for looking at list of files it has received from barn-agents, comparing
   * to what is already on HDFS and transfering the difference.
   */
+
+ // TODO: report shipping per item
 object BarnHdfsWriter
   extends App
   with Logging
@@ -100,7 +102,12 @@ object BarnHdfsWriter
       // Produce a List[File] of local files sorted by svlogd generated timestamp
       localFiles  <- listSortedLocalFiles(serviceDir, excludeList).right
 
+      // TODO: Measure ready size
       totalReadySize <- Right(sumFileSizes(localFiles)).right
+
+      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
+                                        , "ready"
+                                        , totalReadySize)
 
       // The earliest timestamp of local files or maxLookBack timestamp
       lookBack    <- earliestLookbackDate(localFiles, maxLookBackDays).right
@@ -119,9 +126,20 @@ object BarnHdfsWriter
       // but later then maxLookBackDays
       candidates  <- outstandingFiles(localFiles, plan lastTaistamp, maxLookBackDays).right
 
+      // TODO: measure total candidate size
+      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
+                                        , "candidate"
+                                        , sumFileSizes(candidates)
+
+
       // Concatenate the candidate files into a single file on the local temp directory
       concatted   <-  reportCombineTime(
                        concatCandidates(candidates, barnConf.localTempDir)).right
+
+      // TODO: measure concated (and compressed size)
+      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
+                                        , "concatted"
+                                        , concatted.length)
 
       lastTaistamp <- Right(svlogdFileNameToTaiString(candidates.last.getName)).right
 
@@ -144,6 +162,11 @@ object BarnHdfsWriter
                                     , plan hdfsDir
                                     , targetName_
                                     , plan hdfsTempDir)).right
+
+      // TODO: Measure shipped concated size
+      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
+                                        , "shipped"
+                                        , concatted.length)
 
       // Get the largest timestamp of the files to ship
       shippedTS   <- svlogdFileTimestamp(candidates last).right
