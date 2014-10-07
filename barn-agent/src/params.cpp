@@ -30,6 +30,10 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
           "additional sub-namespace per service")
         ("failover_timeout,i", po::value<int>(&conf.failover_timeout)->default_value(10 * 60),
           "how long before failing over to the backup barn-hdfs node")
+        ("remote_rsync_namespace,s", po::value<string>(&conf.remote_rsync_namespace)->default_value("barn_logs"),
+          "Rsync module name on the destination barn-hdfs module")
+        ("remote_rsync_namespace_backup,s", po::value<string>(&conf.remote_rsync_namespace_backup)->default_value("barn_backup_logs"),
+          "Rsync module name on the backup barn-hdfs module")
         ("monitor_mode", po::value<bool>(&conf.monitor_mode)->default_value(false),
           "Listens on udp://localhost:monitor_port/. In this mode the rest of options are unused.");
 

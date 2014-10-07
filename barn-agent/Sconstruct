@@ -27,6 +27,7 @@ release_env = env.Clone()
 if release_env['PLATFORM'] != 'darwin':
     release_env['LINKFLAGS'] = '--static'
 release_env.Append(CCFLAGS = ['-O2'])
+release_env.Append(CCFLAGS = ['-Wall'])
 
 barn_agent_sources = Glob('./src/[!main]*.cpp')
 
@@ -43,6 +44,7 @@ test_env.Append(CPPPATH = ['src'])
 test_env.Append(CPPPATH = ['test/gtest-1.7.0', 'test/gtest-1.7.0/include'])
 test_env.Append(LIBPATH = ['test'])
 test_env.Append(CCFLAGS = ['-g'])
+test_env.Append(CCFLAGS = ['-Wall'])
 
 test_env.Library('test/gtest', ['test/gtest-1.7.0/src/gtest-all.cc'])
 

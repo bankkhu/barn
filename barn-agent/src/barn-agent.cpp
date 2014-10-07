@@ -226,7 +226,7 @@ ChannelSelector<AgentChannel> create_channel_selector(const BarnConf& barn_conf)
   AgentChannel primary;
   primary.rsync_target = get_rsync_target(
         barn_conf.primary_rsync_addr,
-        REMOTE_RSYNC_NAMESPACE,
+        barn_conf.remote_rsync_namespace,
         barn_conf.service_name,
         barn_conf.category);
   primary.source_dir = barn_conf.source_dir;
@@ -234,7 +234,7 @@ ChannelSelector<AgentChannel> create_channel_selector(const BarnConf& barn_conf)
   AgentChannel backup;
   backup.rsync_target = get_rsync_target(
         barn_conf.secondary_rsync_addr,
-        REMOTE_RSYNC_NAMESPACE_BACKUP,
+        barn_conf.remote_rsync_namespace_backup,
         barn_conf.service_name,
         barn_conf.category);
   backup.source_dir = barn_conf.source_dir;
