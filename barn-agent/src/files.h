@@ -31,7 +31,7 @@ public:
                                              int sleep_seconds) const;
   virtual bool file_exists(std::string path) const;
 
-  virtual std::vector<std::string> list_log_directory(
+  virtual FileNameList list_log_directory(
                 std::string directory_path) const {
     return list_file_names(directory_path, SVLOGD_EXCLUDE_FILES);
   }
@@ -45,8 +45,8 @@ public:
         const std::string& rsync_target) const;
 
   // Use rsync to transfer a single file.
-  virtual bool ship_file(const std::string& file_name,
-                        const std::string& rsync_target) const;
+  virtual bool ship_file(const std::string& file_path,
+                         const std::string& rsync_target) const;
 };
 
 
