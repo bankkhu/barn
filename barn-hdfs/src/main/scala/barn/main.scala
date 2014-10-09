@@ -24,6 +24,9 @@ object BarnHdfsWriter
   with TimeUtils
   with Instruments {
 
+  import barn.Metrics.SpoolMetrics
+
+
   val minMB = 1 //minimum megabytes to keep for each service!
   val maxLookBackDays = 3
   val maxReadySize = 1 * 1024 * 1024 * 1024 // 1GB
@@ -31,7 +34,7 @@ object BarnHdfsWriter
 
   // Load the barn configuration and launch the synchronization
   // routine on the set of subdirectories.
-  loadConf(args) { barnConf => {
+  loadConf(args) { barnConf => Metrics.runWebServer(barnConf.telePort) {
 
     enableGanglia(barnConf.appName
                , GangliaOpts(barnConf.gangliaHost
@@ -105,9 +108,9 @@ object BarnHdfsWriter
       // TODO: Measure ready size
       totalReadySize <- Right(sumFileSizes(localFiles)).right
 
-      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
-                                        , "ready"
-                                        , totalReadySize)
+      _ <- Right(SpoolMetrics.record( serviceInfo.serviceName
+                                    , "ready"
+                                    , totalReadySize)).right
 
       // The earliest timestamp of local files or maxLookBack timestamp
       lookBack    <- earliestLookbackDate(localFiles, maxLookBackDays).right
@@ -126,20 +129,18 @@ object BarnHdfsWriter
       // but later then maxLookBackDays
       candidates  <- outstandingFiles(localFiles, plan lastTaistamp, maxLookBackDays).right
 
-      // TODO: measure total candidate size
-      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
-                                        , "candidate"
-                                        , sumFileSizes(candidates)
+      _ <- Right(SpoolMetrics.record( serviceInfo.serviceName
+                                    , "candidate"
+                                    , sumFileSizes(candidates))).right
 
 
       // Concatenate the candidate files into a single file on the local temp directory
       concatted   <-  reportCombineTime(
                        concatCandidates(candidates, barnConf.localTempDir)).right
 
-      // TODO: measure concated (and compressed size)
-      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
-                                        , "concatted"
-                                        , concatted.length)
+      _ <- Right(SpoolMetrics.record( serviceInfo.serviceName
+                                    , "concatted"
+                                    , concatted.length)).right
 
       lastTaistamp <- Right(svlogdFileNameToTaiString(candidates.last.getName)).right
 
@@ -163,10 +164,9 @@ object BarnHdfsWriter
                                     , targetName_
                                     , plan hdfsTempDir)).right
 
-      // TODO: Measure shipped concated size
-      _ <- PrometheusTelemetry.recordSpool(serviceInfo.serviceName
-                                        , "shipped"
-                                        , concatted.length)
+      _ <- Right(SpoolMetrics.record( serviceInfo.serviceName
+                                    , "shipped"
+                                    , concatted.length)).right
 
       // Get the largest timestamp of the files to ship
       shippedTS   <- svlogdFileTimestamp(candidates last).right

@@ -11,7 +11,9 @@ scalaVersion := "2.10.4"
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimize")
 
 resolvers := Seq(
-   "Cloudera Repo" at "https://repository.cloudera.com/artifactory/cloudera-repos/"
+   "SC Hosted"     at "http://maven.int.s-cloud.net/content/groups/hosted"
+ , "SC Proxy"      at "http://maven.int.s-cloud.net/content/groups/proxy"
+ , "Cloudera Repo" at "https://repository.cloudera.com/artifactory/cloudera-repos/"
  )
 
 libraryDependencies := Seq(
@@ -26,6 +28,11 @@ libraryDependencies := Seq(
 , "com.codahale.metrics" % "metrics-ganglia"  % "3.0.2"
 , "com.codahale.metrics" % "metrics-servlet"  % "3.0.2"
 , "nl.grons"          % "metrics-scala_2.10"  % "3.0.2"
+, "javax.servlet"     % "javax.servlet-api"   % "3.1.0"
+, "org.eclipse.jetty" % "jetty-server"        % "8.1.7.v20120910"
+, "org.eclipse.jetty" % "jetty-servlet"       % "8.1.7.v20120910"
+, "io.prometheus"     % "client"              % "0.0.3-pb2.4.1-SNAPSHOT"
+, "io.prometheus.client.utility" % "servlet"  % "0.0.5-pb2.4.1-SNAPSHOT"
 , "com.github.scopt"  % "scopt_2.10" % "2.1.0"
 )
 
