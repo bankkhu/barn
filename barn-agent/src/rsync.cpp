@@ -79,11 +79,11 @@ Validation<FileNameList> FileOps::log_files_not_on_target(const string& source_d
   return files;
 }
 
-bool FileOps::ship_file(const string& file_name, const string& rsync_target) const {
+bool FileOps::ship_file(const string& file_path, const string& rsync_target) const {
   const auto rsync_wet_run = list_of<string>(rsync_executable_name)
                                             .range(RSYNC_FLAGS)
                                             .range(RSYNC_EXCLUDE_DIRECTIVES)
-                                            (file_name)
+                                            (file_path)
                                             (rsync_target);
 
   return run_command("rsync", rsync_wet_run).first == 0;
