@@ -118,6 +118,9 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
     return *err;
   }
 
+  if (existing_files.size() == 0)
+    return FileNameList();
+
   /* Given that a client is retaining arbitrarily long history of files
    * this tries to detect which files are already on the server, and only
    * syncs the ones that are timestamped later than the most recent file
@@ -150,11 +153,12 @@ Validation<ShipStatistics> ship_candidates(
 
   for(const string& el : candidates) {
     cout << "Syncing " + el + " on " + channel.source_dir << endl;
-    if (!fileops.ship_file(channel.source_dir + RSYNC_PATH_SEPARATOR + el,
-                           channel.rsync_target)) {
+    const auto file_path = channel.source_dir + RSYNC_PATH_SEPARATOR + el;
+
+    if (!fileops.ship_file(file_path, channel.rsync_target)) {
       cout << "ERROR: Rsync failed to transfer a log file." << endl;
 
-      if(!fileops.file_exists(el)) {
+      if(!fileops.file_exists(file_path)) {
         cout << "FATAL: Couldn't ship log since it got rotated in the meantime" << endl;
         num_lost_during_ship += 1;
       } else

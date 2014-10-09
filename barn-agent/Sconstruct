@@ -37,16 +37,19 @@ release_env.Program('barn-agent', ['src/main.cpp'] + barn_agent_sources)
 # Testing
 
 test_env = env.Clone()
+test_env.Append(LIBS = ['gmock'])
 test_env.Append(LIBS = ['gtest'])
 test_env.Append(LIBS = ['pthread'])  # TODO: pthread must be last LIB, why?
 test_env.Append(LIBS = ['barnagent_sources'])
 test_env.Append(CPPPATH = ['test'])
 test_env.Append(CPPPATH = ['src'])
+test_env.Append(CPPPATH = ['test/gmock-1.7.0', 'test/gmock-1.7.0/include'])
 test_env.Append(CPPPATH = ['test/gtest-1.7.0', 'test/gtest-1.7.0/include'])
 test_env.Append(LIBPATH = ['test'])
 test_env.Append(CCFLAGS = ['-g'])
 test_env.Append(CCFLAGS = ['-Wall'])
 
+test_env.Library('test/gmock', ['test/gmock-1.7.0/src/gmock-all.cc'])
 test_env.Library('test/gtest', ['test/gtest-1.7.0/src/gtest-all.cc'])
 
 barn_test = test_env.Program('test/barn_test', Glob('./test/*.cpp'))

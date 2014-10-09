@@ -55,6 +55,12 @@ std::vector<T> larger_than_gap(const std::vector<T> A, const std::vector<T> B) {
 template <typename T>
 using Validation = typename boost::variant<BarnError, T>;
 
+// Only here to make gmock mocks compile.
+template<typename T>
+std::ostream& operator <<(std::ostream& out, Validation<T> const& rhs) {
+  return out;
+}
+
 /*
  * Similar to Validation::fold on scalaz.
  * Find more here: https://github.com/scalaz/scalaz/blob/scalaz-seven/core/src/main/scala/scalaz/Validation.scala#L56

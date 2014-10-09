@@ -27,7 +27,7 @@ bool file_exists(std::string path);
 class FileOps {
 
 public:
-  virtual int wait_for_new_file_in_directory(const std::string& directory,
+  virtual bool wait_for_new_file_in_directory(const std::string& directory,
                                              int sleep_seconds) const;
   virtual bool file_exists(std::string path) const;
 
@@ -45,8 +45,8 @@ public:
         const std::string& rsync_target) const;
 
   // Use rsync to transfer a single file.
-  virtual bool ship_file(const std::string& file_path,
-                         const std::string& rsync_target) const;
+  virtual bool ship_file(const std::string& file_name,
+                        const std::string& rsync_target) const;
 };
 
 
