@@ -28,8 +28,10 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
           "additional sub-namespace per service")
         ("monitor_port,i", po::value<int>(&conf.monitor_port),
           "additional sub-namespace per service")
-        ("failover_timeout,i", po::value<int>(&conf.failover_timeout)->default_value(10 * 60),
+        ("seconds_before_failover,i", po::value<int>(&conf.seconds_before_failover)->default_value(10 * 60),
           "how long before failing over to the backup barn-hdfs node")
+        ("sleep_seconds,i", po::value<int>(&conf.sleep_seconds)->default_value(5),
+          "how long to sleep between actions such as a succesful ship and the next one")
         ("remote_rsync_namespace,s", po::value<string>(&conf.remote_rsync_namespace)->default_value("barn_logs"),
           "Rsync module name on the destination barn-hdfs module")
         ("remote_rsync_namespace_backup,s", po::value<string>(&conf.remote_rsync_namespace_backup)->default_value("barn_backup_logs"),

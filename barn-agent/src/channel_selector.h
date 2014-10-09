@@ -1,3 +1,5 @@
+#ifndef CHANNEL_SELECTOR_H
+#define CHANNEL_SELECTOR_H
 
 
 /*
@@ -66,8 +68,6 @@ public:
     return current();
   }
 
-protected:
-  // protected for testing.
   virtual time_t now_in_seconds() const {
     time_t t = time(0);
     if (t < 0) {
@@ -76,8 +76,10 @@ protected:
     return t;
   }
 
+protected:
   // On primary channel: time since last heartbeat() function call
   // On secondary channel: time since flip from primary to secondary
+  // protected for testing.
   time_t last_heartbeat_time;
 
 private:
@@ -85,3 +87,5 @@ private:
     bool primary_ok;
     time_t seconds_before_failover;
 };
+
+#endif  // CHANNEL_SELECTOR_H

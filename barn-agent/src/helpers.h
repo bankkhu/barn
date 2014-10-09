@@ -4,6 +4,13 @@
 #include <vector>
 #include <string>
 #include <boost/lambda/lambda.hpp>
+#include <boost/variant.hpp>
+
+// Types
+typedef std::string FileName;
+typedef std::vector<FileName> FileNameList;
+typedef std::string BarnError;
+
 
 const std::vector<std::string> split(std::string str, char delim);
 const std::vector<std::string> prepend_each(std::vector<std::string> vec, std::string prefix);
@@ -39,6 +46,31 @@ std::vector<T> larger_than_gap(const std::vector<T> A, const std::vector<T> B) {
             , D.end());
 
   return D;
+}
+
+
+/*
+ * This tries to be a poor man's Scala's scalaz's Validation class.
+ */
+template <typename T>
+using Validation = typename boost::variant<BarnError, T>;
+
+/*
+ * Similar to Validation::fold on scalaz.
+ * Find more here: https://github.com/scalaz/scalaz/blob/scalaz-seven/core/src/main/scala/scalaz/Validation.scala#L56
+ */
+template<typename T, typename SuccessFunc, typename FailureFunc>
+void fold(Validation<T> v,
+          SuccessFunc success,
+          FailureFunc failure) {
+
+  T* success_value = boost::get<T>(&v);
+  BarnError* error_value = boost::get<BarnError>(&v);
+
+  if(success_value != 0)
+    success(*success_value);
+  else
+    failure(*error_value);
 }
 
 #endif

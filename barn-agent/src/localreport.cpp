@@ -8,7 +8,7 @@
 
 using namespace std;
 
-void Metrics::send_metric(const std::string& key, int value) {
+void Metrics::send_metric(const std::string& key, int value) const {
   static const auto SERIALIZATION_DELIM = ' ';
   std::ostringstream oss;
 

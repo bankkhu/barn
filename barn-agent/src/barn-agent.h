@@ -4,15 +4,11 @@
 #include <vector>
 #include <string>
 #include <boost/assign/list_of.hpp>
-#include <boost/variant.hpp>
 
+#include "channel_selector.h"
 #include "helpers.h"
 #include "localreport.h"
-
-typedef std::string FileName;
-typedef std::vector<FileName> FileNameList;
-
-typedef std::string BarnError;
+#include "files.h"
 
 
 /*
@@ -26,7 +22,8 @@ struct BarnConf {
   std::string category;  // Category (as secondary name) TODO: currently unused
   bool monitor_mode; // Run barn-agent in monitor mode to accept stats
   int monitor_port;  // Port to bind to send or receive stats (based on monitor_mode
-  int failover_timeout;  // How long to allow for failure on primary_rsync_addr before failing over to secondary_rsync_addr
+  int seconds_before_failover;  // How long to allow for failure on primary_rsync_addr before failing over to secondary_rsync_addr
+  int sleep_seconds;  // Minimum time to sleep between sync rounds.
   std::string remote_rsync_namespace;  // Destination rsync module name ("barn_logs").
   std::string remote_rsync_namespace_backup;  // Destination rsync backup module name ("barn_backup_logs").
 };
@@ -61,31 +58,11 @@ struct ShipStatistics {
 
 void barn_agent_main(const BarnConf& barn_conf);
 
+void dispatch_new_logs(const BarnConf& barn_conf,
+                       const FileOps &rsync,
+                       ChannelSelector<AgentChannel>& channel_selector,
+                       const Metrics& metrics);
 
-/*
- * This tries to pretend to be poor man's Scala's scalaz's Validation class.
- */
-template <typename T>
-using Validation = typename boost::variant<BarnError, T>;
-
-
-/*
- * Similar to Validation::fold on scalaz.
- * Find more here: https://github.com/scalaz/scalaz/blob/scalaz-seven/core/src/main/scala/scalaz/Validation.scala#L56
- */
-template<typename T, typename SuccessFunc, typename FailureFunc>
-void fold(Validation<T> v,
-          SuccessFunc success,
-          FailureFunc failure) {
-
-  T* success_value = boost::get<T>(&v);
-  BarnError* error_value = boost::get<BarnError>(&v);
-
-  if(success_value != 0)
-    success(*success_value);
-  else
-    failure(*error_value);
-}
 
 
 #endif
