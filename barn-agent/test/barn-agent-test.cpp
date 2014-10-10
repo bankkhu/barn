@@ -5,7 +5,13 @@
 
 #include "barn-agent.h"
 
+
+
+namespace barn_agent_test
+{
+
 using namespace std;
+using namespace testing;
 
 
 /**
@@ -102,8 +108,13 @@ auto const LOG_FILE_T0   = "test-file-1";
 auto const LOG_FILE_T1   = "test-file-2";
 auto const LOG_FILE_T2   = "test-file-3";
 
-class BarnAgentTest : public ::testing::Test {
+class BarnAgentTest : public Test {
 public:
+
+  void SetUp() {
+    barn_conf.sleep_seconds = 0;
+  }
+
   BarnConf barn_conf;
   NoOpMetrics metrics;
   FakeMetrics recording_metrics;
@@ -195,30 +206,31 @@ public:
 class MetricsSendingTest : public BarnAgentTest {
 protected:
   virtual void SetUp() {
+    BarnAgentTest::SetUp();
     FileNameList log_files;
     log_files.push_back(LOG_FILE_T0);
     log_files.push_back(LOG_FILE_T1);
 
-    ON_CALL(mfileops, list_log_directory(testing::_))
-      .WillByDefault(testing::Return(log_files));
-    ON_CALL(mfileops, log_files_not_on_target(testing::_, testing::_))
-      .WillByDefault(testing::Return(log_files));
-    ON_CALL(mfileops, wait_for_new_file_in_directory(testing::_, testing::_))
-      .WillByDefault(testing::Return(true));
-    ON_CALL(mfileops, ship_file(testing::_, testing::_))
-      .WillByDefault(testing::Return(true));
-    ON_CALL(mfileops, file_exists(testing::_))
-      .WillByDefault(testing::Return(true));
+    ON_CALL(mfileops, list_log_directory(_))
+      .WillByDefault(Return(log_files));
+    ON_CALL(mfileops, log_files_not_on_target(_, _))
+      .WillByDefault(Return(log_files));
+    ON_CALL(mfileops, wait_for_new_file_in_directory(_, _))
+      .WillByDefault(Return(true));
+    ON_CALL(mfileops, ship_file(_, _))
+      .WillByDefault(Return(true));
+    ON_CALL(mfileops, file_exists(_))
+      .WillByDefault(Return(true));
 
   }
 public:
-  testing::NiceMock<MockFileOps> mfileops;
+  NiceMock<MockFileOps> mfileops;
 };
 
 
 TEST_F(MetricsSendingTest, TestNoOp) {
-  EXPECT_CALL(mfileops, list_log_directory(testing::_))
-      .WillOnce(testing::Return(FileNameList()));
+  EXPECT_CALL(mfileops, list_log_directory(_))
+      .WillOnce(Return(FileNameList()));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(0, (*recording_metrics.sent)[FailedToGetSyncList]);
   EXPECT_EQ(0, (*recording_metrics.sent)[FilesToShip]);
@@ -234,8 +246,8 @@ TEST_F(MetricsSendingTest, TestSuccesfulShip) {
 }
 
 TEST_F(MetricsSendingTest, TestFailedShip) {
-  ON_CALL(mfileops, ship_file(testing::_, testing::_))
-      .WillByDefault(testing::Return(false));
+  ON_CALL(mfileops, ship_file(_, _))
+      .WillByDefault(Return(false));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(2, (*recording_metrics.sent)[FilesToShip]);
   EXPECT_EQ(0, (*recording_metrics.sent)[NumFilesShipped]);
@@ -243,28 +255,28 @@ TEST_F(MetricsSendingTest, TestFailedShip) {
 
 TEST_F(MetricsSendingTest, TestPartialShip) {
   EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T0, ""))
-    .WillOnce(testing::Return(true));
+    .WillOnce(Return(true));
   EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T1, ""))
-    .WillOnce(testing::Return(false));
+    .WillOnce(Return(false));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(2, (*recording_metrics.sent)[FilesToShip]);
   EXPECT_EQ(1, (*recording_metrics.sent)[NumFilesShipped]);
 }
 
 TEST_F(MetricsSendingTest, TestFailedToGetSyncList) {
-  EXPECT_CALL(mfileops, log_files_not_on_target(testing::_, testing::_))
-    .WillOnce(testing::Return(BarnError("Failed to sync")));
+  EXPECT_CALL(mfileops, log_files_not_on_target(_, _))
+    .WillOnce(Return(BarnError("Failed to sync")));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(1, (*recording_metrics.sent)[FailedToGetSyncList]);
 }
 
 TEST_F(MetricsSendingTest, TestLostDuringShip) {
   EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T0, ""))
-    .WillOnce(testing::Return(false));
+    .WillOnce(Return(false));
   EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T1, ""))
-    .WillOnce(testing::Return(true));
+    .WillOnce(Return(true));
   EXPECT_CALL(mfileops, file_exists(string("/") + LOG_FILE_T0))
-    .WillOnce(testing::Return(false));
+    .WillOnce(Return(false));
 
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(1, (*recording_metrics.sent)[LostDuringShip]);
@@ -279,10 +291,84 @@ TEST_F(MetricsSendingTest, TestRotatedDuringShip) {
   FileNameList missing_log_files;
   missing_log_files.push_back(LOG_FILE_T1);
   EXPECT_CALL(mfileops, list_log_directory(""))
-    .WillOnce(testing::Return(log_files))
-    .WillOnce(testing::Return(missing_log_files));
+    .WillOnce(Return(log_files))
+    .WillOnce(Return(missing_log_files));
 
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(0, (*recording_metrics.sent)[LostDuringShip]);
   EXPECT_EQ(1, (*recording_metrics.sent)[RotatedDuringShip]);
 }
+
+
+class MockChannelSelector : public ChannelSelector<AgentChannel> {
+public:
+  MockChannelSelector() : ChannelSelector(PRIMARY, SECONDARY, FAILOVER_INTERVAL) {};
+
+  MOCK_METHOD0(heartbeat, void());
+  MOCK_METHOD0(current, AgentChannel());
+  MOCK_METHOD0(pick_channel, AgentChannel());
+};
+
+
+
+class ChannelSelectionTest : public BarnAgentTest {
+protected:
+  virtual void SetUp() {
+    BarnAgentTest::SetUp();
+    ON_CALL(m_channel_selector, current())
+      .WillByDefault(Return(PRIMARY));
+    ON_CALL(m_channel_selector, pick_channel())
+      .WillByDefault(Return(PRIMARY));
+
+    FileNameList log_files;
+    log_files.push_back(LOG_FILE_T0);
+    log_files.push_back(LOG_FILE_T1);
+    ON_CALL(mfileops, list_log_directory(_))
+          .WillByDefault(Return(log_files));
+    ON_CALL(mfileops, log_files_not_on_target(_, _))
+        .WillByDefault(Return(log_files));
+    ON_CALL(mfileops, wait_for_new_file_in_directory(_, _))
+        .WillByDefault(Return(true));
+    ON_CALL(mfileops, file_exists(_))
+        .WillByDefault(Return(true));
+  }
+
+public:
+  NiceMock<MockChannelSelector> m_channel_selector;
+  NiceMock<MockFileOps> mfileops;
+};
+
+
+TEST_F(ChannelSelectionTest, TestHeartbeatOnNoOp) {
+  EXPECT_CALL(m_channel_selector, pick_channel()).WillOnce(Return(PRIMARY));
+  EXPECT_CALL(m_channel_selector, heartbeat()).WillOnce(Return());
+  dispatch_new_logs(barn_conf, fileops, m_channel_selector, metrics);
+}
+
+TEST_F(ChannelSelectionTest, TestHeartbeatSuccessfulShip) {
+  fileops.local_log_files->push_back(TEST_LOG_FILE);
+  EXPECT_CALL(m_channel_selector, heartbeat()).WillOnce(Return());
+  dispatch_new_logs(barn_conf, fileops, m_channel_selector, recording_metrics);
+}
+
+// Tests that a 'flacky' channel is considered an active channel.
+TEST_F(ChannelSelectionTest, TestHeartbeatPartialShip) {
+  // Ship one file, fail the next
+  EXPECT_CALL(mfileops, ship_file(_, _))
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  // Should still heartbeat
+  EXPECT_CALL(m_channel_selector, heartbeat()).WillOnce(Return());
+  dispatch_new_logs(barn_conf, mfileops, m_channel_selector, recording_metrics);
+}
+
+TEST_F(ChannelSelectionTest, TestNoHeartbeatOnFailedShip) {
+  // Fail all ships
+  EXPECT_CALL(mfileops, ship_file(_, _))
+      .WillOnce(Return(false));
+  // Should not heartbeat
+  EXPECT_CALL(m_channel_selector, heartbeat()).Times(0);
+  dispatch_new_logs(barn_conf, mfileops, m_channel_selector, recording_metrics);
+}
+
+}  // namespace barn_agent_test

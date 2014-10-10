@@ -32,20 +32,20 @@ public:
       last_heartbeat_time = now_in_seconds();
    };
 
-  const T current() const {
+  virtual const T current() const {
     if (primary_ok)
         return primary;
     else
         return secondary;
   }
 
-  void heartbeat() {
+  virtual void heartbeat() {
     if(primary_ok) {
         last_heartbeat_time = now_in_seconds();
     }
   }
 
-  T pick_channel() {
+  virtual T pick_channel() {
     time_t now = now_in_seconds(); 
     time_t time_since_heartbeat = now - last_heartbeat_time;
     if (primary_ok &&

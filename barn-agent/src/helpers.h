@@ -62,21 +62,22 @@ std::ostream& operator <<(std::ostream& out, Validation<T> const& rhs) {
 }
 
 /*
- * Similar to Validation::fold on scalaz.
- * Find more here: https://github.com/scalaz/scalaz/blob/scalaz-seven/core/src/main/scala/scalaz/Validation.scala#L56
+ * Similar to Validation in scalaz.
  */
-template<typename T, typename SuccessFunc, typename FailureFunc>
-void fold(Validation<T> v,
-          SuccessFunc success,
-          FailureFunc failure) {
-
-  T* success_value = boost::get<T>(&v);
+template<typename T> bool isFailure(Validation<T> v) {
   BarnError* error_value = boost::get<BarnError>(&v);
+  return error_value != 0;
+}
 
-  if(success_value != 0)
-    success(*success_value);
-  else
-    failure(*error_value);
+template<typename T> T get(Validation<T> v) {
+  assert(!isFailure(v));
+  T* success_value = boost::get<T>(&v);
+  return *success_value;
+}
+
+template<typename T> BarnError error(Validation<T> v) {
+  BarnError* error_value = boost::get<BarnError>(&v);
+  return *error_value;
 }
 
 #endif
