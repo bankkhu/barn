@@ -14,8 +14,8 @@ using namespace std;
 using namespace boost::assign;
 using namespace boost;
 
-static Validation<ShipStatistics> ship_candidates(
-        const FileOps&, const AgentChannel& channel, vector<string> candidates);
+static Validation<int> ship_candidates(
+        const FileOps&, const AgentChannel& channel, const Metrics&, vector<string> candidates);
 static Validation<FileNameList> query_candidates(const FileOps&, const AgentChannel& channel);
 static ChannelSelector<AgentChannel> create_channel_selector(const BarnConf& barn_conf);
 static void sleep_it(const BarnConf&);
@@ -61,11 +61,8 @@ void dispatch_new_logs(const BarnConf& barn_conf,
     sleep_it(barn_conf);
   };
 
-  auto after_successful_ship = [&](ShipStatistics ship_statistics) {
-    metrics.send_metric(LostDuringShip, ship_statistics.num_lost_during_ship);
-    metrics.send_metric(RotatedDuringShip, ship_statistics.num_rotated_during_ship);
-    metrics.send_metric(NumFilesShipped, ship_statistics.num_shipped);
-    cout << "successfully shipped " << ship_statistics.num_shipped << " files" << endl;
+  auto after_successful_ship = [&](int num_shipped) {
+    cout << "successfully shipped " << num_shipped << " files" << endl;
     channel_selector.heartbeat();
 
     // If no file is shipped, wait for a change on directory.
@@ -73,7 +70,7 @@ void dispatch_new_logs(const BarnConf& barn_conf,
     // make sure in the meantime no new file is generated.
     // TODO after using inotify API directly, there is no need for this
     //   as the change notifications will be waiting in the inotify fd
-    if (ship_statistics.num_shipped) {
+    if (num_shipped) {
       sleep_it(barn_conf);
     } else {
       cout << "Waiting for directory change..." << endl;
@@ -91,7 +88,7 @@ void dispatch_new_logs(const BarnConf& barn_conf,
     [&](FileNameList file_name_list) {
       metrics.send_metric(FilesToShip, file_name_list.size());
       fold(
-        ship_candidates(fileops, channel_selector.current(), file_name_list),
+        ship_candidates(fileops, channel_selector.current(), metrics, file_name_list),
         after_successful_ship,
         ship_failure);
     },
@@ -141,15 +138,16 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 /*
  * Ship candidates to channel destination.
  */
-Validation<ShipStatistics> ship_candidates(
-        const FileOps& fileops, const AgentChannel& channel, vector<string> candidates) {
+Validation<int> ship_candidates(
+        const FileOps& fileops, const AgentChannel& channel, const Metrics& metrics, vector<string> candidates) {
   const int candidates_size = candidates.size();
 
-  if(!candidates_size) return ShipStatistics(0, 0, 0);
+  if(!candidates_size) return 0;
 
   sort(candidates.begin(), candidates.end());
 
   auto num_lost_during_ship(0);
+  auto num_shipped(0);
 
   for(const string& el : candidates) {
     cout << "Syncing " + el + " on " + channel.source_dir << endl;
@@ -161,20 +159,27 @@ Validation<ShipStatistics> ship_candidates(
       if(!fileops.file_exists(file_path)) {
         cout << "FATAL: Couldn't ship log since it got rotated in the meantime" << endl;
         num_lost_during_ship += 1;
-      } else
-        return BarnError("ERROR: Couldn't ship log possibly due to a network error");
-    }
+      } else {
+        // file exists, stop and retry
+        break;
+      }
+    } else
+        num_shipped++;
   }
+  metrics.send_metric(LostDuringShip, num_lost_during_ship);
+  metrics.send_metric(NumFilesShipped, num_shipped);
 
   int num_rotated_during_ship(0);
 
   if((num_rotated_during_ship =
-      count_missing(candidates, fileops.list_log_directory(channel.source_dir))) != 0)
+      count_missing(candidates, fileops.list_log_directory(channel.source_dir))) != 0) {
     cout << "DANGER: We're producing logs much faster than shipping." << endl;
+    metrics.send_metric(RotatedDuringShip, num_rotated_during_ship);
+  }
+  if (num_shipped != candidates_size)
+    return BarnError("ERROR: Couldn't ship log possibly due to a network error");
 
-  return ShipStatistics(candidates_size
-                      , num_rotated_during_ship
-                      , num_lost_during_ship);
+  return num_shipped;
 }
 
 void sleep_it(const BarnConf& barn_conf)  {

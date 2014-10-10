@@ -37,25 +37,6 @@ struct AgentChannel {
    std::string rsync_target;  // The full rsync path name. e.g. rsync://80.80.80:80:1000/barn_logs/foo
 };
 
-
-/*
- * A data structure returned by sync functions to report on
- * success / failure of a sync operation
- */
-struct ShipStatistics {
-  ShipStatistics(int num_shipped
-               , int num_rotated_during_ship
-               , int num_lost_during_ship)
-    :num_shipped(num_shipped),
-     num_rotated_during_ship(num_rotated_during_ship),
-     num_lost_during_ship(num_lost_during_ship) {};
-
-  int num_shipped;
-  int num_rotated_during_ship;
-  int num_lost_during_ship;
-};
-
-
 void barn_agent_main(const BarnConf& barn_conf);
 
 void dispatch_new_logs(const BarnConf& barn_conf,

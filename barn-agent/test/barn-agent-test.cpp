@@ -248,8 +248,7 @@ TEST_F(MetricsSendingTest, TestPartialShip) {
     .WillOnce(testing::Return(false));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(2, (*recording_metrics.sent)[FilesToShip]);
-  // TODO: Bug, fix
-  //EXPECT_EQ(1, (*recording_metrics.sent)[NumFilesShipped]);
+  EXPECT_EQ(1, (*recording_metrics.sent)[NumFilesShipped]);
 }
 
 TEST_F(MetricsSendingTest, TestFailedToGetSyncList) {
