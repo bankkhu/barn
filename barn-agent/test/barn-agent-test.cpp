@@ -241,6 +241,7 @@ TEST_F(MetricsSendingTest, TestNoOp) {
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(0, (*recording_metrics.sent)[FailedToGetSyncList]);
   EXPECT_EQ(0, (*recording_metrics.sent)[FilesToShip]);
+  EXPECT_EQ(0, (*recording_metrics.sent)[FullDirectoryShip]);
   EXPECT_EQ(0, (*recording_metrics.sent)[LostDuringShip]);
   EXPECT_EQ(0, (*recording_metrics.sent)[NumFilesShipped]);
   EXPECT_EQ(0, (*recording_metrics.sent)[RotatedDuringShip]);
@@ -250,6 +251,7 @@ TEST_F(MetricsSendingTest, TestSuccesfulShip) {
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(2, (*recording_metrics.sent)[FilesToShip]);
   EXPECT_EQ(2, (*recording_metrics.sent)[NumFilesShipped]);
+  EXPECT_EQ(1, (*recording_metrics.sent)[FullDirectoryShip]);
 }
 
 TEST_F(MetricsSendingTest, TestFailedShip) {
@@ -304,6 +306,24 @@ TEST_F(MetricsSendingTest, TestRotatedDuringShip) {
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(0, (*recording_metrics.sent)[LostDuringShip]);
   EXPECT_EQ(1, (*recording_metrics.sent)[RotatedDuringShip]);
+}
+
+TEST_F(MetricsSendingTest, TestFullDirectoryShip) {
+  FileNameList log_files;
+  log_files.push_back(LOG_FILE_T1);
+
+  EXPECT_CALL(mfileops, log_files_not_on_target(_, _))
+    .WillOnce(Return(log_files));
+  dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
+  EXPECT_EQ(0, (*recording_metrics.sent)[FullDirectoryShip]);
+
+  log_files.clear();
+  log_files.push_back(LOG_FILE_T0);
+  log_files.push_back(LOG_FILE_T1);
+  EXPECT_CALL(mfileops, log_files_not_on_target(_, _))
+    .WillOnce(Return(log_files));
+  dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
+  EXPECT_EQ(1, (*recording_metrics.sent)[FullDirectoryShip]);
 }
 
 

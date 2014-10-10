@@ -119,9 +119,13 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
    *  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
    */
   FileNameList logs_to_ship = larger_than_gap(existing_files, *boost::get<FileNameList>(&files_not_on_server));
-  // TODO: we should put some metrics in here to warn when number of files to ship
-  // is the same as the number of existing files.
   metrics.send_metric(FilesToShip, logs_to_ship.size());
+  if (logs_to_ship.size() == existing_files.size()) {
+    // TODO: replace cout with log function that includes service name
+    cout << "Warning about to ship all log files from " << channel.source_dir << endl;
+    metrics.send_metric(FullDirectoryShip, 1);
+  }
+  cout << " shipping : " << logs_to_ship.size() << " files" << endl;
   return logs_to_ship;
 }
 
@@ -163,7 +167,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
   }
   cout << "successfully shipped " << num_shipped << " files" << endl;
   if (num_shipped < candidates_size) {
-    cout << "failed to ship" << (candidates_size-num_shipped) << " files" << endl;
+    cout << "failed to ship " << (candidates_size-num_shipped) << " files" << endl;
   }
   metrics.send_metric(NumFilesShipped, num_shipped);
 
