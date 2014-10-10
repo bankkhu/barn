@@ -7,6 +7,10 @@
 
 
 
+
+/**
+ * Unittests for barn-agent.cpp
+ */
 namespace barn_agent_test
 {
 
@@ -14,17 +18,24 @@ using namespace std;
 using namespace testing;
 
 
-/**
- * Unittests for barn-agent.cpp
- */
+auto const SOURCE_DIRECTORY = "/var/log";
 
-static const AgentChannel PRIMARY = AgentChannel();
-static const AgentChannel SECONDARY = AgentChannel();
+auto const TEST_LOG_FILE = "test-file";
+auto const LOG_FILE_T0   = "test-file-1";
+auto const LOG_FILE_T1   = "test-file-2";
+auto const LOG_FILE_T2   = "test-file-3";
+
+static AgentChannel PRIMARY = AgentChannel();
+static AgentChannel SECONDARY = AgentChannel();
 static const int FAILOVER_INTERVAL = 30;
 
 
 string file_name_from_path(const string& file_path) {
   return file_path.substr(file_path.find_last_of("\\/")+1, file_path.size());
+}
+
+string log_dir(const string& log_file_name) {
+  return SOURCE_DIRECTORY + string("/") + log_file_name;
 }
 
 
@@ -103,16 +114,12 @@ public:
 };
 
 
-auto const TEST_LOG_FILE = "test-file";
-auto const LOG_FILE_T0   = "test-file-1";
-auto const LOG_FILE_T1   = "test-file-2";
-auto const LOG_FILE_T2   = "test-file-3";
-
 class BarnAgentTest : public Test {
 public:
 
   void SetUp() {
     barn_conf.sleep_seconds = 0;
+    PRIMARY.source_dir = "/var/log";
   }
 
   BarnConf barn_conf;
@@ -254,9 +261,9 @@ TEST_F(MetricsSendingTest, TestFailedShip) {
 }
 
 TEST_F(MetricsSendingTest, TestPartialShip) {
-  EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T0, ""))
+  EXPECT_CALL(mfileops, ship_file(log_dir(LOG_FILE_T0), _))
     .WillOnce(Return(true));
-  EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T1, ""))
+  EXPECT_CALL(mfileops, ship_file(log_dir(LOG_FILE_T1), _))
     .WillOnce(Return(false));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(2, (*recording_metrics.sent)[FilesToShip]);
@@ -271,11 +278,11 @@ TEST_F(MetricsSendingTest, TestFailedToGetSyncList) {
 }
 
 TEST_F(MetricsSendingTest, TestLostDuringShip) {
-  EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T0, ""))
+  EXPECT_CALL(mfileops, ship_file(log_dir(LOG_FILE_T0), _))
     .WillOnce(Return(false));
-  EXPECT_CALL(mfileops, ship_file(string("/") + LOG_FILE_T1, ""))
+  EXPECT_CALL(mfileops, ship_file(log_dir(LOG_FILE_T1), _))
     .WillOnce(Return(true));
-  EXPECT_CALL(mfileops, file_exists(string("/") + LOG_FILE_T0))
+  EXPECT_CALL(mfileops, file_exists(log_dir(LOG_FILE_T0)))
     .WillOnce(Return(false));
 
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
@@ -290,7 +297,7 @@ TEST_F(MetricsSendingTest, TestRotatedDuringShip) {
 
   FileNameList missing_log_files;
   missing_log_files.push_back(LOG_FILE_T1);
-  EXPECT_CALL(mfileops, list_log_directory(""))
+  EXPECT_CALL(mfileops, list_log_directory(SOURCE_DIRECTORY))
     .WillOnce(Return(log_files))
     .WillOnce(Return(missing_log_files));
 
