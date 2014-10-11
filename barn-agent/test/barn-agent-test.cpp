@@ -18,7 +18,8 @@ using namespace std;
 using namespace testing;
 
 
-auto const SOURCE_DIRECTORY = "/var/log";
+auto const SOURCE_DIRECTORY = "/log_dir/service";
+auto const RSYNC_TARGET     = "rsync_t";
 
 auto const TEST_LOG_FILE = "test-file";
 auto const LOG_FILE_T0   = "test-file-1";
@@ -26,7 +27,6 @@ auto const LOG_FILE_T1   = "test-file-2";
 auto const LOG_FILE_T2   = "test-file-3";
 
 static AgentChannel PRIMARY = AgentChannel();
-static AgentChannel SECONDARY = AgentChannel();
 static const int FAILOVER_INTERVAL = 30;
 
 
@@ -83,17 +83,9 @@ public:
 };
 
 
-class FakeChannelSelector : public ChannelSelector<AgentChannel> {
+class FakeChannelSelector : public SingleChannelSelector<AgentChannel> {
 public:
-  FakeChannelSelector() : ChannelSelector(PRIMARY, SECONDARY, FAILOVER_INTERVAL) {
-    last_heartbeat_time = now = 0;
-  };
-
-  virtual time_t now_in_seconds() const override {
-    return now;
-  }
-
-  time_t now;
+  FakeChannelSelector() : SingleChannelSelector(PRIMARY) {};
 };
 
 
@@ -119,7 +111,8 @@ public:
 
   void SetUp() {
     barn_conf.sleep_seconds = 0;
-    PRIMARY.source_dir = "/var/log";
+    PRIMARY.source_dir = SOURCE_DIRECTORY;
+    PRIMARY.rsync_target = RSYNC_TARGET;
   }
 
   BarnConf barn_conf;
@@ -329,10 +322,10 @@ TEST_F(MetricsSendingTest, TestFullDirectoryShip) {
 
 class MockChannelSelector : public ChannelSelector<AgentChannel> {
 public:
-  MockChannelSelector() : ChannelSelector(PRIMARY, SECONDARY, FAILOVER_INTERVAL) {};
+  MockChannelSelector() {};
 
   MOCK_METHOD0(heartbeat, void());
-  MOCK_METHOD0(current, AgentChannel());
+  MOCK_CONST_METHOD0(current, AgentChannel());
   MOCK_METHOD0(pick_channel, AgentChannel());
 };
 

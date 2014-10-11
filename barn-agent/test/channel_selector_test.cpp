@@ -12,9 +12,9 @@ static const int SECONDARY = 2;
 
 static const int FAILOVER_INTERVAL = 30;
 
-class MockChannelSelector : public ChannelSelector<int> {
+class MockChannelSelector : public FailoverChannelSelector<int> {
 public:
-  MockChannelSelector() : ChannelSelector(PRIMARY, SECONDARY, FAILOVER_INTERVAL) {
+  MockChannelSelector() : FailoverChannelSelector(PRIMARY, SECONDARY, FAILOVER_INTERVAL) {
     last_heartbeat_time = now = 0;
   };
 

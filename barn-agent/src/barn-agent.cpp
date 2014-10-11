@@ -17,7 +17,8 @@ using namespace boost;
 static Validation<int> ship_candidates(
         const FileOps&, const AgentChannel&, const Metrics&, vector<string>);
 static Validation<FileNameList> query_candidates(const FileOps&, const AgentChannel&, const Metrics&);
-static ChannelSelector<AgentChannel> create_channel_selector(const BarnConf&);
+static ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf&);
+static Metrics* create_metrics(const BarnConf&);
 static void sleep_it(const BarnConf&);
 
 
@@ -30,15 +31,16 @@ static void sleep_it(const BarnConf&);
  */
 void barn_agent_main(const BarnConf& barn_conf) {
 
-  Metrics metrics = Metrics(barn_conf.monitor_port,
-    barn_conf.service_name, barn_conf.category);
-
+  auto metrics = create_metrics(barn_conf);
   auto channel_selector = create_channel_selector(barn_conf);
   auto fileops = FileOps();
 
   while(true) {
-    dispatch_new_logs(barn_conf, fileops, channel_selector, metrics);
+    dispatch_new_logs(barn_conf, fileops, *channel_selector, *metrics);
   }
+
+  delete channel_selector;
+  delete metrics;
 }
 
 
@@ -190,9 +192,19 @@ void sleep_it(const BarnConf& barn_conf)  {
   sleep(barn_conf.sleep_seconds);
 }
 
+Metrics* create_metrics(const BarnConf& barn_conf) {
+  if (barn_conf.monitor_port > 0) {
+    return new Metrics(barn_conf.monitor_port, barn_conf.service_name,
+                       barn_conf.category);
+  } else {
+    return new NoOpMetrics();
+  }
+}
+
 // Setup primary and optionally backup ChannelSelector from configuration.
 // TODO: make backup fully optional.
-ChannelSelector<AgentChannel> create_channel_selector(const BarnConf& barn_conf) {
+ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf& barn_conf) {
+
   AgentChannel primary;
   primary.rsync_target = get_rsync_target(
         barn_conf.primary_rsync_addr,
@@ -201,13 +213,19 @@ ChannelSelector<AgentChannel> create_channel_selector(const BarnConf& barn_conf)
         barn_conf.category);
   primary.source_dir = barn_conf.source_dir;
 
-  AgentChannel backup;
-  backup.rsync_target = get_rsync_target(
-        barn_conf.secondary_rsync_addr,
-        barn_conf.remote_rsync_namespace_backup,
-        barn_conf.service_name,
-        barn_conf.category);
-  backup.source_dir = barn_conf.source_dir;
+  if (barn_conf.seconds_before_failover == 0) {
+    return new SingleChannelSelector<AgentChannel>(primary);
+  } else {
+    assert (barn_conf.seconds_before_failover > 60);  // sanity check
 
-  return ChannelSelector<AgentChannel>(primary, backup, barn_conf.seconds_before_failover);
+    AgentChannel backup;
+    backup.rsync_target = get_rsync_target(
+          barn_conf.secondary_rsync_addr,
+          barn_conf.remote_rsync_namespace_backup,
+          barn_conf.service_name,
+          barn_conf.category);
+    backup.source_dir = barn_conf.source_dir;
+    return new FailoverChannelSelector<AgentChannel>(primary, backup, barn_conf.seconds_before_failover);
+  }
+
 }

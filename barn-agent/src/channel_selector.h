@@ -2,6 +2,29 @@
 #define CHANNEL_SELECTOR_H
 
 
+template <class T> class ChannelSelector {
+public:
+  virtual void heartbeat() = 0;
+  virtual T pick_channel() = 0;
+  virtual T current() const = 0;
+
+  virtual ~ChannelSelector() {};
+};
+
+template <class T> class SingleChannelSelector : public ChannelSelector<T> {
+public:
+  SingleChannelSelector(T channel):
+        channel(channel) {};
+
+  virtual void heartbeat() override {};
+  virtual T pick_channel() override { return channel; };
+  virtual T current() const override { return channel; };
+
+private:
+  T channel;
+};
+
+
 /*
  * Time based channel selector for choosing between primary and
  * secondary (backup) endpoints.
@@ -20,10 +43,10 @@
  *         if (primary_channel_ok)
  *             cs.heartbeat()
  */
-template <class T> class ChannelSelector {
+template <class T> class FailoverChannelSelector : public ChannelSelector<T> {
 
 public:
-    ChannelSelector(T primary, T secondary, int seconds_before_failover):
+    FailoverChannelSelector(T primary, T secondary, int seconds_before_failover):
         primary(primary),
         secondary(secondary),
         seconds_before_failover(seconds_before_failover) {
@@ -32,20 +55,20 @@ public:
       last_heartbeat_time = now_in_seconds();
    };
 
-  virtual const T current() const {
+  virtual T current() const override {
     if (primary_ok)
         return primary;
     else
         return secondary;
   }
 
-  virtual void heartbeat() {
+  virtual void heartbeat() override {
     if(primary_ok) {
         last_heartbeat_time = now_in_seconds();
     }
   }
 
-  virtual T pick_channel() {
+  virtual T pick_channel() override {
     time_t now = now_in_seconds(); 
     time_t time_since_heartbeat = now - last_heartbeat_time;
     if (primary_ok &&

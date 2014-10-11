@@ -41,6 +41,8 @@ class Metrics {
   {};
 
   virtual void send_metric(const std::string& key, int value) const;
+
+  virtual ~Metrics() {};
 };
 
 /**
