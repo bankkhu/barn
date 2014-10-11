@@ -10,6 +10,10 @@
 
 #define RSYNC_PATH_SEPARATOR "/"
 
+// Putting a file with this name in the log directory will
+// cause barn-agent to stop shipping from that directory.
+#define EMERGENCY_STOP_FILENAME "STOP_SHIPPING"
+
 // TODO this should be parameterised
 static const auto SVLOGD_EXCLUDE_FILES =
         boost::assign::list_of<std::string>("config")("current")("lock");
