@@ -97,6 +97,8 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
   auto existing_files = fileops.list_log_directory(channel.source_dir);
   sort(existing_files.begin(), existing_files.end());
 
+  // TODO: use boost filesystem path/file instead of string
+
   Validation<FileNameList> files_not_on_server = fileops.log_files_not_on_target(
         channel.source_dir, existing_files,
         channel.rsync_target);
@@ -123,12 +125,12 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
    */
   FileNameList logs_to_ship = larger_than_gap(existing_files, get(files_not_on_server));
   metrics.send_metric(FilesToShip, logs_to_ship.size());
+  cout << "Querying " << channel.source_dir << " with " << existing_files.size() << " log files: " << logs_to_ship.size() << " log files to ship" << endl;
   if (logs_to_ship.size() == existing_files.size()) {
     // TODO: replace cout with log function that includes service name
     cout << "Warning about to ship all log files from " << channel.source_dir << endl;
     metrics.send_metric(FullDirectoryShip, 1);
   }
-  cout << " shipping : " << logs_to_ship.size() << " files" << endl;
   return logs_to_ship;
 }
 
@@ -146,14 +148,15 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
   if(!candidates_size) {
     return 0;
   }
+  cout << "Shipping : " << candidates_size << " files" << endl;
   sort(candidates.begin(), candidates.end());
 
   auto num_lost_during_ship(0);
   auto num_shipped(0);
 
   for(const string& el : candidates) {
-    cout << "Syncing " + el + " on " + channel.source_dir << endl;
-    const auto file_path = channel.source_dir + RSYNC_PATH_SEPARATOR + el;
+    const auto file_path = join_path(channel.source_dir, el);
+    cout << "Rsyncing " << file_path << " to " << channel.rsync_target << endl;
 
     if (!fileops.ship_file(file_path, channel.rsync_target)) {
       cout << "ERROR: Rsync failed to transfer log file " << file_path << endl;
