@@ -98,7 +98,8 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
   sort(existing_files.begin(), existing_files.end());
 
   Validation<FileNameList> files_not_on_server = fileops.log_files_not_on_target(
-        channel.source_dir, channel.rsync_target);
+        channel.source_dir, existing_files,
+        channel.rsync_target);
 
   BarnError *err = boost::get<BarnError>(&files_not_on_server); 
   if (err != 0) {
@@ -120,7 +121,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
    *  remote: {t3, t4}                 // deduced from sync candidates
    *  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
    */
-  FileNameList logs_to_ship = larger_than_gap(existing_files, *boost::get<FileNameList>(&files_not_on_server));
+  FileNameList logs_to_ship = larger_than_gap(existing_files, get(files_not_on_server));
   metrics.send_metric(FilesToShip, logs_to_ship.size());
   if (logs_to_ship.size() == existing_files.size()) {
     // TODO: replace cout with log function that includes service name

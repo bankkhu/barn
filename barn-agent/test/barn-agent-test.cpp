@@ -52,9 +52,10 @@ public:
 
   virtual Validation<FileNameList> log_files_not_on_target(
         const string& source_dir,
+        const FileNameList& files,
         const string& rsync_target) const override {
      FileNameList files_not_on_server;
-     set_difference(local_log_files->begin(), local_log_files->end(),
+     set_difference(files.begin(), files.end(),
                     remote_log_files->begin(), remote_log_files->end(),
                     inserter(files_not_on_server, files_not_on_server.end()));
      return files_not_on_server;
@@ -198,8 +199,8 @@ public:
   MOCK_CONST_METHOD2(ship_file, bool(const string&, const string&));
   MOCK_CONST_METHOD1(list_log_directory,
         FileNameList(string));
-  MOCK_CONST_METHOD2(log_files_not_on_target,
-        Validation<FileNameList>(const string&, const string&));
+  MOCK_CONST_METHOD3(log_files_not_on_target,
+        Validation<FileNameList>(const string&, const FileNameList&, const string&));
 };
 
 
@@ -213,7 +214,7 @@ protected:
 
     ON_CALL(mfileops, list_log_directory(_))
       .WillByDefault(Return(log_files));
-    ON_CALL(mfileops, log_files_not_on_target(_, _))
+    ON_CALL(mfileops, log_files_not_on_target(_, _, _))
       .WillByDefault(Return(log_files));
     ON_CALL(mfileops, wait_for_new_file_in_directory(_, _))
       .WillByDefault(Return(true));
@@ -266,7 +267,7 @@ TEST_F(MetricsSendingTest, TestPartialShip) {
 }
 
 TEST_F(MetricsSendingTest, TestFailedToGetSyncList) {
-  EXPECT_CALL(mfileops, log_files_not_on_target(_, _))
+  EXPECT_CALL(mfileops, log_files_not_on_target(_, _, _))
     .WillOnce(Return(BarnError("Failed to sync")));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(1, (*recording_metrics.sent)[FailedToGetSyncList]);
@@ -305,7 +306,7 @@ TEST_F(MetricsSendingTest, TestFullDirectoryShip) {
   FileNameList log_files;
   log_files.push_back(LOG_FILE_T1);
 
-  EXPECT_CALL(mfileops, log_files_not_on_target(_, _))
+  EXPECT_CALL(mfileops, log_files_not_on_target(_, _, _))
     .WillOnce(Return(log_files));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(0, (*recording_metrics.sent)[FullDirectoryShip]);
@@ -313,7 +314,7 @@ TEST_F(MetricsSendingTest, TestFullDirectoryShip) {
   log_files.clear();
   log_files.push_back(LOG_FILE_T0);
   log_files.push_back(LOG_FILE_T1);
-  EXPECT_CALL(mfileops, log_files_not_on_target(_, _))
+  EXPECT_CALL(mfileops, log_files_not_on_target(_, _, _))
     .WillOnce(Return(log_files));
   dispatch_new_logs(barn_conf, mfileops, channel_selector, recording_metrics);
   EXPECT_EQ(1, (*recording_metrics.sent)[FullDirectoryShip]);
@@ -345,7 +346,7 @@ protected:
     log_files.push_back(LOG_FILE_T1);
     ON_CALL(mfileops, list_log_directory(_))
           .WillByDefault(Return(log_files));
-    ON_CALL(mfileops, log_files_not_on_target(_, _))
+    ON_CALL(mfileops, log_files_not_on_target(_, _, _))
         .WillByDefault(Return(log_files));
     ON_CALL(mfileops, wait_for_new_file_in_directory(_, _))
         .WillByDefault(Return(true));
