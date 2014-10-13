@@ -42,8 +42,7 @@ bool FileOps::wait_for_new_file_in_directory(const std::string& directory, int s
                              ("moved_to")
                              (directory + "/")).first == 0;
   } catch (const boost::filesystem::filesystem_error& ex) {
-    cout << "You appear not having inotifywait, sleeping instead."
-         << ex.what() << endl;
+    LOG (INFO) << "You appear not having inotifywait, sleeping instead." << ex.what();
     sleep(sleep_seconds);
     return true;
   }
@@ -57,7 +56,7 @@ FileNameList FileOps::list_log_directory(std::string directory_path) const {
       svlogd_files.push_back(*it);
     }
     if (*it == EMERGENCY_STOP_FILENAME) {
-        cout << "WARNING: file STOP_SHIPPING found, disabling log shipping" << endl;
+        LOG (WARNING) << "file STOP_SHIPPING found, disabling log shipping";
         return FileNameList();
     }
   }

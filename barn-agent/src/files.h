@@ -7,6 +7,7 @@
 #include <boost/filesystem/operations.hpp>
 
 #include "helpers.h"
+#include "params.h"
 
 #define RSYNC_PATH_SEPARATOR "/"
 
