@@ -8,6 +8,7 @@
 
 const std::string FilesToShip        ("barn_files_to_ship");
 const std::string FailedToGetSyncList("barn_failed_to_get_sync_list");
+const std::string FullDirectoryShip  ("barn_shipping_entire_log_directory");
 const std::string RotatedDuringShip  ("barn_rotated_during_ship");
 const std::string LostDuringShip     ("barn_lost_during_ship");
 const std::string NumFilesShipped    ("barn_files_shipped");
@@ -16,6 +17,7 @@ const std::string NumFilesShipped    ("barn_files_shipped");
 const std::vector<std::string> DefaultZeroMetrics =
   boost::assign::list_of(FilesToShip)
                         (FailedToGetSyncList)
+                        (FullDirectoryShip)
                         (RotatedDuringShip)
                         (NumFilesShipped)
                         (LostDuringShip);
@@ -39,6 +41,8 @@ class Metrics {
   {};
 
   virtual void send_metric(const std::string& key, int value) const;
+
+  virtual ~Metrics() {};
 };
 
 /**
@@ -74,6 +78,15 @@ class Report {
 
   static Report deserialize(const std::string& serialized);
 };
+
+Metrics* create_metrics(const BarnConf& barn_conf) {
+  if (barn_conf.monitor_port > 0) {
+    return new Metrics(barn_conf.monitor_port, barn_conf.service_name,
+                       barn_conf.category);
+  } else {
+    return new NoOpMetrics();
+  }
+}
 
 void receive_reports(int port, std::function<void(const Report&)> handler);
 

@@ -71,3 +71,18 @@ bool FileOps::wait_for_new_file_in_directory(const std::string& directory, int s
     return true;
   }
 }
+
+FileNameList FileOps::list_log_directory(std::string directory_path) const {
+  auto file_names = list_file_names(directory_path);
+  FileNameList svlogd_files;
+  for(vector<string>::const_iterator it = file_names.begin(); it < file_names.end(); ++it) {
+    if(is_svlogd_filename(*it)) {
+      svlogd_files.push_back(*it);
+    }
+    if (*it == EMERGENCY_STOP_FILENAME) {
+        cout << "WARNING: file STOP_SHIPPING found, disabling log shipping" << endl;
+        return FileNameList();
+    }
+  }
+  return svlogd_files;
+}

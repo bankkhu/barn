@@ -37,34 +37,42 @@ const std::string get_rsync_target(
   static const auto host_name = get_host_name(); //TODO: make me better
   static const auto TOKEN_SEPARATOR = "@";
 
-  return rsync_protocol + destination_host_addr // TODO: allow backup channel here too.
+  return rsync_protocol + destination_host_addr
        + RSYNC_PATH_SEPARATOR + remote_rsync_namespace
        + RSYNC_PATH_SEPARATOR + service_name
        + TOKEN_SEPARATOR + category
        + TOKEN_SEPARATOR + host_name + RSYNC_PATH_SEPARATOR;
 }
 
+// Returns the list of logs (files beginning with '@') that need to
+// be transferred.
 static const vector<string> get_rsync_candidates(string rsync_output) {
   const auto lines = split(rsync_output, '\n');
   vector<string> svlogd_files;
 
   for(vector<string>::const_iterator it = lines.begin(); it < lines.end(); ++it) {
-    if((*it)[0] == '@') {
+    if(is_svlogd_filename(*it)) {
       svlogd_files.push_back(*it);
     }
   }
-
   return svlogd_files;
 }
 
-Validation<FileNameList> FileOps::log_files_not_on_target(const string& source_dir, const string& rsync_target) const {
+Validation<FileNameList> FileOps::log_files_not_on_target(
+        const string& log_directory, const FileNameList& files,
+        const string& rsync_target) const {
+
+  if (files.size() == 0) {
+    return FileNameList();
+  }
+
+  auto file_paths = join_path(log_directory, files);
+
   const auto rsync_dry_run =
     list_of<string>(rsync_executable_name)
                  (rsync_dry_run_flag)
                  .range(RSYNC_FLAGS)
-                 .range(RSYNC_EXCLUDE_DIRECTIVES)
-                 // TODO: remove list_file_paths from here
-                 .range(list_file_paths(source_dir))
+                 .range(file_paths)
                  (rsync_target);
 
   const auto rsync_output = run_command("rsync", rsync_dry_run);
@@ -74,9 +82,9 @@ Validation<FileNameList> FileOps::log_files_not_on_target(const string& source_d
     return BarnError(string("Failed to retrieve sync list: ") + rsync_output.second);
   }
 
-  auto files = get_rsync_candidates(rsync_output.second);
-  sort(files.begin(), files.end());
-  return files;
+  auto missing_files = get_rsync_candidates(rsync_output.second);
+  sort(missing_files.begin(), missing_files.end());
+  return missing_files;
 }
 
 bool FileOps::ship_file(const string& file_path, const string& rsync_target) const {
