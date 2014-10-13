@@ -18,7 +18,6 @@ static Validation<int> ship_candidates(
         const FileOps&, const AgentChannel&, const Metrics&, vector<string>);
 static Validation<FileNameList> query_candidates(const FileOps&, const AgentChannel&, const Metrics&);
 static ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf&);
-static Metrics* create_metrics(const BarnConf&);
 static void sleep_it(const BarnConf&);
 
 
@@ -194,15 +193,6 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 void sleep_it(const BarnConf& barn_conf)  {
   cout << "Sleeping for " << barn_conf.sleep_seconds << " seconds..." << endl;
   sleep(barn_conf.sleep_seconds);
-}
-
-Metrics* create_metrics(const BarnConf& barn_conf) {
-  if (barn_conf.monitor_port > 0) {
-    return new Metrics(barn_conf.monitor_port, barn_conf.service_name,
-                       barn_conf.category);
-  } else {
-    return new NoOpMetrics();
-  }
 }
 
 // Setup primary and optionally backup ChannelSelector from configuration.

@@ -79,6 +79,15 @@ class Report {
   static Report deserialize(const std::string& serialized);
 };
 
+Metrics* create_metrics(const BarnConf& barn_conf) {
+  if (barn_conf.monitor_port > 0) {
+    return new Metrics(barn_conf.monitor_port, barn_conf.service_name,
+                       barn_conf.category);
+  } else {
+    return new NoOpMetrics();
+  }
+}
+
 void receive_reports(int port, std::function<void(const Report&)> handler);
 
 void send_datagram(int port, std::string message);
