@@ -127,7 +127,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
    *  remote: {t3, t4}                 // deduced from sync candidates
    *  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
    */
-  FileNameList logs_to_ship = larger_than_gap(existing_files, get(files_not_on_server));
+  FileNameList logs_to_ship = tail_intersection(existing_files, get(files_not_on_server));
   metrics.send_metric(FilesToShip, logs_to_ship.size());
   cout << "Querying " << channel.source_dir << " with " << existing_files.size() << " log files: " << logs_to_ship.size() << " log files to ship" << endl;
   if (logs_to_ship.size() == existing_files.size()) {
