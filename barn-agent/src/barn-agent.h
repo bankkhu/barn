@@ -19,7 +19,7 @@ struct BarnConf {
   std::string secondary_rsync_addr; // secondary remote rsync daemon's address
   std::string source_dir; // Source of local log files
   std::string service_name; // Service name to be attributed to the logs
-  std::string category;  // Category (as secondary name) TODO: currently unused
+  std::string category;  // Category (as secondary name)
   bool monitor_mode; // Run barn-agent in monitor mode to accept stats
   int monitor_port;  // Port to bind to send or receive stats (based on monitor_mode
   int seconds_before_failover;  // How long to allow for failure on primary_rsync_addr before failing over to secondary_rsync_addr

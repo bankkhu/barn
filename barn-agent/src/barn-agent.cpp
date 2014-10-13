@@ -201,7 +201,6 @@ void sleep_it(const BarnConf& barn_conf)  {
 }
 
 // Setup primary and optionally backup ChannelSelector from configuration.
-// TODO: make backup fully optional.
 ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf& barn_conf) {
 
   AgentChannel primary;
