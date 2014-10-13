@@ -82,6 +82,11 @@ void dispatch_new_logs(const BarnConf& barn_conf,
     fileops.wait_for_new_file_in_directory(
           channel.source_dir, barn_conf.sleep_seconds);
   }
+
+  // If shipping round gets this far it means we managed to ship at least
+  // 'some' of the outstanding files to the destination. Don't want to failover
+  // unless necessary so heartbeat the current channel even if we didn't manage
+  // to ship 'all' outstanding files.
   channel_selector.heartbeat();
 }
 
