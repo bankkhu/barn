@@ -210,8 +210,6 @@ ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf& barn_conf
   if (barn_conf.seconds_before_failover == 0) {
     return new SingleChannelSelector<AgentChannel>(primary);
   } else {
-    assert (barn_conf.seconds_before_failover > 60);  // sanity check
-
     AgentChannel backup;
     backup.rsync_target = get_rsync_target(
           barn_conf.secondary_rsync_addr,

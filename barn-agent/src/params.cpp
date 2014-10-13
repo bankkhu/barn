@@ -70,6 +70,11 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
         exit(1);
     }
 
+    if (conf.seconds_before_failover != 0 && conf.seconds_before_failover <= 60) {
+      cerr << "FATAL: seconds_before_failover less than one minute, this would cause failovers too quickly." << endl
+      exit(1);
+    }
+
     return conf;
 
   } catch(exception& e) {
