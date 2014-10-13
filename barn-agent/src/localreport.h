@@ -6,6 +6,8 @@
 #include <string>
 #include <boost/assign/list_of.hpp>
 
+#include "params.h"
+
 const std::string FilesToShip        ("barn_files_to_ship");
 const std::string FailedToGetSyncList("barn_failed_to_get_sync_list");
 const std::string FullDirectoryShip  ("barn_shipping_entire_log_directory");
@@ -79,7 +81,7 @@ class Report {
   static Report deserialize(const std::string& serialized);
 };
 
-Metrics* create_metrics(const BarnConf& barn_conf) {
+inline Metrics* create_metrics(const BarnConf& barn_conf) {
   if (barn_conf.monitor_port > 0) {
     return new Metrics(barn_conf.monitor_port, barn_conf.service_name,
                        barn_conf.category);
