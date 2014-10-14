@@ -114,6 +114,17 @@ object Metrics {
            .build
 
     @Register
+    val lastShipGauge =
+      Gauge.newBuilder
+           .namespace(BARN)
+           .subsystem(BARN_HDFS)
+           .name("time_since_last_ship")
+           .labelNames(SERVICE_NAME, HOST_NAME)
+           .documentation("Age, in ms, of the last file shipped " +
+                          "according to svlogdtimestamps in file names.")
+           .build
+
+    @Register
     val concatCounter =
       Counter.newBuilder
              .namespace(BARN)
@@ -229,6 +240,14 @@ object Metrics {
                      .labelPair(HOST_NAME, serviceInfo.hostName)
                      .apply
                      .set(System.currentTimeMillis - minFileDate.getMillis)
+
+    def setLastShipDate( serviceInfo: LocalServiceInfo
+                       , shipDate   : DateTime ) : Unit =
+      lastShipGauge.newPartial
+                   .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                   .labelPair(HOST_NAME, serviceInfo.hostName)
+                   .apply
+                   .set(System.currentTimeMillis - shipDate.getMillis)
 
     def monitorConcat[A](serviceInfo: LocalServiceInfo)
                         (act: => Either[BarnError,A])

@@ -13,6 +13,9 @@ trait HdfsPlacementStrategy
   with Hadoop
   with SvlogdFile {
 
+  import barn.Metrics.SyncMetrics
+
+
   implicit def dateBucket2Date(d: DateBucket) : DateTime
   = new DateTime(d.year, d.month, d.day, 0, 0)
 
@@ -68,6 +71,11 @@ trait HdfsPlacementStrategy
 
        lastShippedTaistamp   <- Right(getLastShippedTaistamp(hdfsFilesFileInfo, serviceInfo)).right
        lastShippedTimestamp  <- Right(lastShippedTaistamp.map(Tai64.convertTai64ToTime(_))).right
+       _                     <- Right(lastShippedTimestamp.map { ts =>
+                                        SyncMetrics.setLastShipDate(
+                                                      serviceInfo
+                                                    , ts)
+                                      }.getOrElse(())).right
 
        _                    <- isShippingTime(lastShippedTimestamp
                                             , shipInterval
