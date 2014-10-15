@@ -54,8 +54,8 @@ void dispatch_new_logs(const BarnConf& barn_conf,
   auto logs_to_ship = query_candidates(fileops, channel, metrics);
 
   if (isFailure(logs_to_ship)) {
-    cout << "Syncing Error to " << channel.rsync_target <<
-                            ":" << error(logs_to_ship) << endl;
+    LOG (ERROR) << "Syncing Error to " << channel.rsync_target <<
+                   ":" << error(logs_to_ship);
     sleep_it(barn_conf);
     return;
   }
@@ -63,8 +63,7 @@ void dispatch_new_logs(const BarnConf& barn_conf,
   auto num_shipped = ship_candidates(fileops, channel, metrics, get(logs_to_ship));
 
   if (isFailure(num_shipped)) {
-    cout << "ERROR: Shipment failure to " <<
-            channel.rsync_target << endl;
+    LOG (ERROR) << "ERROR: Shipment failure to " << channel.rsync_target;
     // On error, sleep to prevent error-spins
     sleep_it(barn_conf);
     return;
@@ -78,7 +77,7 @@ void dispatch_new_logs(const BarnConf& barn_conf,
     //   as the change notifications will be waiting in the inotify fd
     sleep_it(barn_conf);
   } else {
-    cout << "Waiting for directory change..." << endl;
+    LOG (INFO) << "Waiting for directory change...";
     fileops.wait_for_new_file_in_directory(
           channel.source_dir, barn_conf.sleep_seconds);
   }
@@ -127,12 +126,11 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
    *  remote: {t3, t4}                 // deduced from sync candidates
    *  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
    */
-  FileNameList logs_to_ship = larger_than_gap(existing_files, get(files_not_on_server));
+  FileNameList logs_to_ship = tail_intersection(existing_files, get(files_not_on_server));
   metrics.send_metric(FilesToShip, logs_to_ship.size());
-  cout << "Querying " << channel.source_dir << " with " << existing_files.size() << " log files: " << logs_to_ship.size() << " log files to ship" << endl;
+  LOG (INFO) << "Querying " << channel.source_dir << " with " << existing_files.size() << " log files: " << logs_to_ship.size() << " log files to ship";
   if (logs_to_ship.size() == existing_files.size()) {
-    // TODO: replace cout with log function that includes service name
-    cout << "Warning about to ship all log files from " << channel.source_dir << endl;
+    LOG (WARNING) << "Warning about to ship all log files from " << channel.source_dir;
     metrics.send_metric(FullDirectoryShip, 1);
   }
   return logs_to_ship;
@@ -152,7 +150,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
   if(!candidates_size) {
     return 0;
   }
-  cout << "Shipping : " << candidates_size << " files" << endl;
+  LOG (INFO) << "Shipping : " << candidates_size << " files";
   sort(candidates.begin(), candidates.end());
 
   auto num_lost_during_ship(0);
@@ -160,13 +158,13 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 
   for(const string& el : candidates) {
     const auto file_path = join_path(channel.source_dir, el);
-    cout << "Rsyncing " << file_path << " to " << channel.rsync_target << endl;
+    LOG (INFO) << "Rsyncing " << file_path << " to " << channel.rsync_target;
 
     if (!fileops.ship_file(file_path, channel.rsync_target)) {
-      cout << "ERROR: Rsync failed to transfer log file " << file_path << endl;
+      LOG (WARNING) << "Rsync failed to transfer log file " << file_path;
 
       if(!fileops.file_exists(file_path)) {
-        cout << "FATAL: Couldn't ship log since it got rotated in the meantime" << endl;
+        LOG (ERROR) << "Lost data! Couldn't ship log since it got rotated in the meantime";
         num_lost_during_ship += 1;
       } else {
         // Failed to ship, but file still exists, stop and retry in next iteration
@@ -175,9 +173,9 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
     } else
         num_shipped++;
   }
-  cout << "successfully shipped " << num_shipped << " files" << endl;
+  LOG (INFO) << "successfully shipped " << num_shipped << " files";
   if (num_shipped < candidates_size) {
-    cout << "failed to ship " << (candidates_size-num_shipped) << " files" << endl;
+    LOG (WARNING) << "failed to ship " << (candidates_size-num_shipped) << " files";
   }
   metrics.send_metric(NumFilesShipped, num_shipped);
 
@@ -187,7 +185,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 
   if((num_rotated_during_ship =
       count_missing(candidates, fileops.list_log_directory(channel.source_dir))) != 0) {
-    cout << "DANGER: We're producing logs much faster than shipping." << endl;
+    LOG (WARNING) << "We're producing logs much faster than shipping.";
     metrics.send_metric(RotatedDuringShip, num_rotated_during_ship);
   }
 
@@ -196,12 +194,11 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 }
 
 void sleep_it(const BarnConf& barn_conf)  {
-  cout << "Sleeping for " << barn_conf.sleep_seconds << " seconds..." << endl;
+  LOG (INFO) << "Sleeping for " << barn_conf.sleep_seconds << " seconds...";
   sleep(barn_conf.sleep_seconds);
 }
 
 // Setup primary and optionally backup ChannelSelector from configuration.
-// TODO: make backup fully optional.
 ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf& barn_conf) {
 
   AgentChannel primary;

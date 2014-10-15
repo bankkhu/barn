@@ -7,6 +7,7 @@
 #include <boost/filesystem/operations.hpp>
 
 #include "helpers.h"
+#include "params.h"
 
 #define RSYNC_PATH_SEPARATOR "/"
 
@@ -14,14 +15,6 @@
 // cause barn-agent to stop shipping from that directory.
 #define EMERGENCY_STOP_FILENAME "STOP_SHIPPING"
 
-// TODO this should be parameterised
-static const auto SVLOGD_EXCLUDE_FILES =
-        boost::assign::list_of<std::string>("config")("current")("lock");
-
-std::vector<std::string> list_file_paths(std::string path);
-std::vector<std::string> list_file_names(std::string path);
-std::vector<std::string> list_file_names(std::string path
-                                       , std::vector<std::string> exclusions);
 bool file_exists(std::string path);
 
 // Class for file related operations.

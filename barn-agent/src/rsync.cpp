@@ -22,13 +22,6 @@ static const std::string rsync_dry_run_flag = "--dry-run";
 static const auto RSYNC_FLAGS = boost::assign::list_of<std::string>
         ("--times")("--verbose")("--timeout=30");
 
-static const auto RSYNC_EXCLUDE_DIRECTIVES = prepend_each(
-  boost::assign::list_of<std::string>("*.u")
-                                     .range(SVLOGD_EXCLUDE_FILES)
-                                     ("*~")
-  , "--exclude=");
-
-
 const std::string get_rsync_target(
     const string& destination_host_addr,
     const string& remote_rsync_namespace,
@@ -90,7 +83,6 @@ Validation<FileNameList> FileOps::log_files_not_on_target(
 bool FileOps::ship_file(const string& file_path, const string& rsync_target) const {
   const auto rsync_wet_run = list_of<string>(rsync_executable_name)
                                             .range(RSYNC_FLAGS)
-                                            .range(RSYNC_EXCLUDE_DIRECTIVES)
                                             (file_path)
                                             (rsync_target);
 

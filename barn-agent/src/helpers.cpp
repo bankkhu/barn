@@ -24,14 +24,50 @@ const vector<string> prepend_each(vector<string> vec, string prefix) {
 }
 
 
-//Returns the number of elements from small missing in big
+/*
+ * Given two sorted vectors, returns the number of elements
+ * in small not in big.
+ */
 int count_missing(vector<string> small, vector<string> big) {
-  int invalid = 0;
+  int missing = 0;
 
-  //TODO not efficient, make me better.
-  for(string& el : small)
-    invalid += std::find(big.begin(), big.end(), el) == big.end();
+  for (auto sm = small.begin(), bg = big.begin();
+       sm != small.end();) {
+       if (bg == big.end() || *sm < *bg) {
+         ++missing;
+         ++sm;
+       } else if (*sm == *bg) {
+         ++sm;
+         ++bg;
+       } else {
+         ++bg;
+       }
+  }
+  return missing;
+}
 
-  return invalid;
+/*
+ * Given two sorted vectors, finds the elements that are in both
+ * A and B starting at the end. Stops at the first difference.
+ *
+ * Example:
+ *      A = {1,2,3,4,5,6,7,8}
+ *      B = {1,2,3,4,    7,8}
+ * result = {7,8}
+*/
+vector<string> tail_intersection(const std::vector<string> A, const std::vector<string> B) {
+  vector<string> result;
+
+  for (auto a = A.rbegin(), b = B.rbegin();
+       a != A.rend() && b != B.rend();
+       ++a,++b) {
+       if (*a == *b)
+         result.push_back(*a);
+       else
+         break;
+  }
+  reverse(result.begin(), result.end());
+
+  return result;
 }
 

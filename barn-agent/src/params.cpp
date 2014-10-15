@@ -53,7 +53,7 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
       cerr << "ERROR: options 'target-addr', 'source', 'service-name', 'category' are all required" << endl;
       show_desc = true;
     } else if (!conf.monitor_mode && conf.monitor_port <= 0) {
-      cerr << "WARNING: No monitor_port specified, metrics reporting disabled" << endl;
+      cerr << "WARN: No monitor_port specified, metrics reporting disabled" << endl;
     } else if (conf.monitor_mode && vm["monitor_port"].empty()) {
       cerr << "ERROR: option 'monitor_port' is required in monitor_mode" << endl;
       show_desc = true;
