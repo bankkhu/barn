@@ -3,8 +3,9 @@
 
 .PHONY: build clean dist canary fpm test
 
-VERSION := 0.6.3
+VERSION := 0.6.42
 DEB := barn-agent_$(VERSION)_all.deb
+TAR := barn-agent-$(VERSION)-linux-amd64.tar.gz
 CANARY := barn-agent-canary_$(VERSION)_all.deb
 
 default : test
@@ -15,7 +16,7 @@ build :
 test : build
 	./test/barn_test
 
-dist : build $(DEB)
+dist : build $(DEB) $(TAR)
 
 canary : build $(CANARY)
 
@@ -39,6 +40,10 @@ $(DEB) :
 			-d inotify-tools \
 			-d ganglia-monitor \
 			./usr/local/bin/barn-agent
+
+$(TAR):
+	@echo "Building agent .tar.gz..."
+	tar -czf $@ barn-agent
 
 $(CANARY) :
 	@echo "Building agent canary .deb..."
