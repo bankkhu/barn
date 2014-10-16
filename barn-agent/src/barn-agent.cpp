@@ -98,7 +98,6 @@ void dispatch_new_logs(const BarnConf& barn_conf,
  */
 Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentChannel& channel, const Metrics& metrics) {
   auto existing_files = fileops.list_log_directory(channel.source_dir);
-  sort(existing_files.begin(), existing_files.end());
 
   // TODO: use boost filesystem path/file instead of string
 
@@ -173,6 +172,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
     } else
         num_shipped++;
   }
+  // TODO: Perhaps add shipping time metrics exposed.
   LOG (INFO) << "successfully shipped " << num_shipped << " files";
   if (num_shipped < candidates_size) {
     LOG (WARNING) << "failed to ship " << (candidates_size-num_shipped) << " files";
@@ -185,7 +185,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 
   if((num_rotated_during_ship =
       count_missing(candidates, fileops.list_log_directory(channel.source_dir))) != 0) {
-    LOG (WARNING) << "We're producing logs much faster than shipping.";
+    LOG (WARNING) << "We're producing logs faster than shipping (" << num_rotated_during_ship << ").";
     metrics.send_metric(RotatedDuringShip, num_rotated_during_ship);
   }
 

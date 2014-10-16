@@ -18,6 +18,8 @@ static vector<string> list_file_names(string path_) {
   for(fs::directory_iterator it(path); it != end ; ++it)
     file_names.push_back(it->path().filename().string());
 
+  sort(file_names.begin(), file_names.end());
+
   return file_names;
 }
 
@@ -48,6 +50,7 @@ bool FileOps::wait_for_new_file_in_directory(const std::string& directory, int s
   }
 }
 
+// Returns a sorted list of filenames in the given directory.
 FileNameList FileOps::list_log_directory(std::string directory_path) const {
   auto file_names = list_file_names(directory_path);
   FileNameList svlogd_files;
