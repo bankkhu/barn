@@ -28,7 +28,7 @@ const vector<string> prepend_each(vector<string> vec, string prefix) {
  * Given two sorted vectors, returns the number of elements
  * in small not in big.
  */
-int count_missing(vector<string> small, vector<string> big) {
+int count_missing(const vector<string>& small, const vector<string>& big) {
   int missing = 0;
 
   for (auto sm = small.begin(), bg = big.begin();
@@ -55,7 +55,7 @@ int count_missing(vector<string> small, vector<string> big) {
  *      B = {1,2,3,4,    7,8}
  * result = {7,8}
 */
-vector<string> tail_intersection(const std::vector<string> A, const std::vector<string> B) {
+vector<string> tail_intersection(const std::vector<string>& A, const std::vector<string>& B) {
   vector<string> result;
 
   for (auto a = A.rbegin(), b = B.rbegin();

@@ -15,8 +15,8 @@ typedef std::string BarnError;
 const std::vector<std::string> split(std::string str, char delim);
 const std::vector<std::string> prepend_each(std::vector<std::string> vec, std::string prefix);
 
-int count_missing(std::vector<std::string> small, std::vector<std::string> big);
-std::vector<std::string> tail_intersection(const std::vector<std::string> A, const std::vector<std::string> B);
+int count_missing(const std::vector<std::string>& small, const std::vector<std::string>& big);
+std::vector<std::string> tail_intersection(const std::vector<std::string>& A, const std::vector<std::string>& B);
 
 /*
  * This tries to be a poor man's Scala's scalaz's Validation class.
