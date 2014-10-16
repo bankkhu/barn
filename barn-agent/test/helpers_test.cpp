@@ -90,6 +90,35 @@ TEST_F(CountMissingTest, Normal) {
   EXPECT_EQ(1, actual);
 }
 
+TEST_F(CountMissingTest, Ends) {
+  vector<string> small = {     "B", "C"};
+  vector<string> big   = {"A", "B", "C"};
+  int actual = count_missing(small, big);
+  EXPECT_EQ(0, actual);
+
+  small = {"A", "B"     };
+  big   = {"A", "B", "C"};
+  actual = count_missing(small, big);
+  EXPECT_EQ(0, actual);
+
+  small = {     "B", "C"};
+  big   = {"A", "B"     };
+  actual = count_missing(small, big);
+  EXPECT_EQ(1, actual);
+
+  small = {"A", "B"     };
+  big   = {     "B", "C"};
+  actual = count_missing(small, big);
+  EXPECT_EQ(1, actual);
+}
+
+TEST_F(CountMissingTest, Full) {
+  vector<string> small = {"1", "2"};
+  vector<string> big   = {"A", "B", "C", "D", "E"};
+  int actual = count_missing(small, big);
+  EXPECT_EQ(2, actual);
+}
+
 TEST_F(CountMissingTest, BarnCase) {
   vector<string> small = { "@40001", "@40002", "@40003", "@40004"};
   vector<string> big =   {                     "@40003", "@40004", "@40005" };
