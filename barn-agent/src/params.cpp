@@ -57,7 +57,7 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
     } else if (conf.monitor_mode && vm["monitor_port"].empty()) {
       cerr << "ERROR: option 'monitor_port' is required in monitor_mode" << endl;
       show_desc = true;
-    } else if (conf.seconds_before_failover > 0 && vm["secondary-addr"].empty()) {
+    } else if (conf.seconds_before_failover > 0 && vm["backup-addr"].empty()) {
       cerr << endl;
       show_desc = true;
     }
