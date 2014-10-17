@@ -1,6 +1,8 @@
 #ifndef CHANNEL_SELECTOR_H
 #define CHANNEL_SELECTOR_H
 
+#include "params.h"
+
 
 template <class T> class ChannelSelector {
 public:
@@ -76,7 +78,7 @@ public:
       // normal case, everything ok
     } else if (primary_ok) {
       // too long, perform failover
-      std::cout << "!!Channel: error primary down for too long, failing to backup" << std::endl;
+      LOG (ERROR) << "!!Channel: error primary down for too long, failing to backup";
       primary_ok = false;
       last_heartbeat_time = now;
     // TODO: set failback seconds independent of failover
@@ -84,7 +86,7 @@ public:
       // on secondary, stay there for now
     } else {
       // on secondary for long enough, try primary again
-      std::cout << "!!Channel: trying to fail back to primary from backup" << std::endl;
+      LOG (WARNING) << "!!Channel: trying to fail back to primary from backup";
       primary_ok = true;
       last_heartbeat_time = now;
     }
