@@ -173,9 +173,11 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
         num_shipped++;
   }
   // TODO: Perhaps add shipping time metrics exposed.
-  LOG (INFO) << "successfully shipped " << num_shipped << " files";
   if (num_shipped < candidates_size) {
     LOG (WARNING) << "failed to ship " << (candidates_size-num_shipped) << " files";
+  }
+  if (num_shipped > 0) {
+    LOG (INFO) << "successfully shipped " << num_shipped << " files";
   }
   metrics.send_metric(NumFilesShipped, num_shipped);
 
