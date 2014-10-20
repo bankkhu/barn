@@ -1,14 +1,11 @@
 import AssemblyKeys._
-import com.twitter.sbt._
 
 name := "barn-hdfs"
 
-version := "0.1.36"
+version := "0.1.37-SNAPSHOT"
 
 organization := "com.soundcloud"
 
-// FIXME: twitter's sbt-package-dist is only available for sbt 0.11.x + scala
-// 2.9.1
 scalaVersion := "2.10.4"
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-optimize")
@@ -39,8 +36,6 @@ libraryDependencies := Seq(
 
 PackageDist.newSettings
 
-GitProject.gitSettings
-
 
 //
 //  test settings + options
@@ -62,10 +57,18 @@ fork in Slow := true
 
 crossPaths := false
 
-// unfortunately, the below don't prevent including those jars in the
-// package-dist
 publishArtifact in Test := false
 
 publishArtifact in (Compile, packageDoc) := false
 
 publishArtifact in (Compile, packageSrc) := false
+
+addArtifact(Artifact("barn-hdfs", "zip", "zip"), packageDist)
+
+publishTo <<= version { (v: String) =>
+  val sc = "http://maven.int.s-cloud.net/content/repositories"
+  if (v.trim.endsWith("SNAPSHOT"))
+    Some("snapshots" at sc + "snapshots")
+  else
+    Some("releases" at sc + "releases")
+}

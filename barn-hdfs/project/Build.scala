@@ -3,7 +3,7 @@ import Keys._
 
 object BarnBuild extends Build {
     lazy val barn =
-        Project("barn-server", file("."))
+        Project("barn-hdfs", file("."))
             .configs(Slow)
             .settings(inConfig(Slow)(Defaults.testTasks) : _*)
             .settings(

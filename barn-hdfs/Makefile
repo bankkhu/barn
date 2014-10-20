@@ -1,4 +1,4 @@
-.PHONY: build clean dist test test-thorough start-hadoop stop-hadoop
+.PHONY: build clean dist test test-thorough publish publish-local tag start-hadoop stop-hadoop
 
 VERSION := $(shell cat build.sbt | sed -n -E -e 's/version[[:space:]]+:=[[:space:]]+"([^"]+)"/\1/p')
 PACKAGE_ZIP := dist/barn-hdfs-$(VERSION).zip
@@ -23,12 +23,27 @@ test :
 	$(SBT) test
 
 test-thorough : start-hadoop
-	$(SBT) test slow:test
-	$(MAKE) stop-hadoop
+	$(SBT) test slow:test; \
+	code=$$?; \
+	$(MAKE) stop-hadoop; \
+	exit $$code
 
 clean :
-	rm -rf dist
+	rm -rf dist hadoop-data
 	$(SBT) clean
+
+publish : clean test-thorough
+	$(SBT) publish
+	$(MAKE) tag
+
+tag:
+ifeq (,$(findstring SNAPSHOT,$(VERSION)))
+	+git tag -a barn-hdfs-$(VERSION) -m "barn-hdfs release version $(VERSION)"
+	+git push origin barn-hdfs-$(VERSION)
+endif
+
+publish-local :
+	$(SBT) publish-local
 
 start-hadoop : $(DAHOOP_BASE) $(DAHOOP_DATA)
 	@echo "Starting Dahoops..."
