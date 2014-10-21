@@ -42,6 +42,11 @@ object BarnHdfsWriter
 
         info("Round of sync started.")
 
+      // TODO: createLazyFileSystem creates one cached filesystem per thread which
+      // gets refreshed once per sync round. This is very expensive on the network
+      // if a sync round is quick
+      // (an empty log directory gives 6MB/second of return traffic from the namenode)
+      // Maybe add a sleep here if a sync is quick
         listDirs().fold(logBarnError("List dirs in" + barnConf.localLogDir)
                       , syncRootLogDir(barnConf))
 
