@@ -59,13 +59,37 @@ object Metrics {
            .build
 
     @Register
+    val loopCounter =
+      Counter.newBuilder
+             .namespace(BARN)
+             .subsystem(BARN_HDFS)
+             .name("loop_count")
+             .documentation("A counter of the total sync loops made.")
+             .build
+
+    @Register
+    val loopDurationSummary =
+      Summary.newBuilder
+             .namespace(BARN)
+             .subsystem(BARN_HDFS)
+             .name("loop_duration")
+             .documentation("A histogram of total sync loop durations in ms.")
+             .targetQuantile(0.01, 0.05)
+             .targetQuantile(0.05, 0.05)
+             .targetQuantile(0.5, 0.05)
+             .targetQuantile(0.9, 0.01)
+             .targetQuantile(0.99, 0.001)
+             .build
+
+
+    @Register
     val syncCounter =
       Counter.newBuilder
              .namespace(BARN)
              .subsystem(BARN_HDFS)
-             .name("sync_loop_count")
+             .name("sync_count")
              .labelNames(RESULT)
-             .documentation("A counter of the total sync loops made.")
+             .documentation("A counter of the total directory syncs made.")
              .build
 
     @Register
@@ -73,8 +97,8 @@ object Metrics {
       Summary.newBuilder
              .namespace(BARN)
              .subsystem(BARN_HDFS)
-             .name("sync_loop_duration")
-             .documentation("A histogram of sync loop durations in ms.")
+             .name("sync_duration")
+             .documentation("A histogram of directory sync durations in ms.")
              .targetQuantile(0.01, 0.05)
              .targetQuantile(0.05, 0.05)
              .targetQuantile(0.5, 0.05)
@@ -208,6 +232,20 @@ object Metrics {
       serviceGauge.newPartial
                   .apply
                   .set(number)
+    }
+
+    def monitorLoop[A](act: => Unit) : Unit = {
+      val start = System.currentTimeMillis
+      val res   = act
+      val time  = System.currentTimeMillis - start
+
+      loopCounter.newPartial
+                 .apply
+                 .increment
+
+      loopDurationSummary.newPartial
+                         .apply
+                         .observe(time)
     }
 
     def monitorSync[A](act: => Either[BarnError,A]): Either[BarnError,A] =

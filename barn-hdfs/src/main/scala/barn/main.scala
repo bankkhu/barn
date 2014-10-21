@@ -45,7 +45,7 @@ object BarnHdfsWriter
     enableJMX();
 
     continually(() => listSubdirectories(barnConf.localLogDir)).iterator
-      .foreach { listDirs => {
+      .foreach { listDirs => SyncMetrics.monitorLoop {
 
         info("Round of sync started.")
 
