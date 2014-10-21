@@ -29,6 +29,10 @@ void addDefaultMetrics(MetricRepo& metrics) {
 void timer_action(Timer* timer, MetricRepo* metrics, boost::mutex* repo_mutex){
   MetricRepo metrics_copy;
 
+  if (metrics->full()) {
+    LOG (ERROR) << "metrics buffer full";
+  }
+
   {
     boost::mutex::scoped_lock lock(*repo_mutex);
     metrics_copy = *metrics;
