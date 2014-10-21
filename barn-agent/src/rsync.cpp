@@ -9,8 +9,10 @@ using namespace std;
 using namespace boost;
 using namespace boost::assign;
 
+static const int RSYNC_NUM_RETRIES = 2;
 
 static const int PARTIAL_TRANSFER = 23;
+static const int CLIENT_SERVER_PROTOCOL = 5;
 static const int PARTIAL_TRANSFER_DUE_VANISHED_SOURCE = 24;
 static const std::string rsync_executable_name = "rsync";
 static const std::string rsync_protocol = "rsync://";
@@ -37,6 +39,21 @@ const std::string get_rsync_target(
        + TOKEN_SEPARATOR + host_name + RSYNC_PATH_SEPARATOR;
 }
 
+// Run 'rsync' command, retry if there is a network failure
+// (e.g. too many connections on the server side).
+static const pair<int, string> do_rsync(const vector<string>& args) {
+  pair<int, string> rsync_output;
+  for (int tri = 0; tri <= RSYNC_NUM_RETRIES; tri++) {
+    rsync_output = run_command("rsync", args);
+    if (rsync_output.first != CLIENT_SERVER_PROTOCOL) {
+        return rsync_output;
+    } else if(tri<=RSYNC_NUM_RETRIES) {
+      LOG(WARNING) << "rsync protocol failure, retrying...";
+    }
+  }
+  return rsync_output;
+}
+
 // Returns the list of logs (files beginning with '@') that need to
 // be transferred.
 static const vector<string> get_rsync_candidates(string rsync_output) {
@@ -51,6 +68,7 @@ static const vector<string> get_rsync_candidates(string rsync_output) {
   return svlogd_files;
 }
 
+// Use rsync dry run...
 Validation<FileNameList> FileOps::log_files_not_on_target(
         const string& log_directory, const FileNameList& files,
         const string& rsync_target) const {
@@ -68,7 +86,7 @@ Validation<FileNameList> FileOps::log_files_not_on_target(
                  .range(file_paths)
                  (rsync_target);
 
-  const auto rsync_output = run_command("rsync", rsync_dry_run);
+  const auto rsync_output = do_rsync(rsync_dry_run);
 
   if(rsync_output.first != 0 && rsync_output.first != PARTIAL_TRANSFER &&
      rsync_output.first != PARTIAL_TRANSFER_DUE_VANISHED_SOURCE) {
@@ -86,5 +104,5 @@ bool FileOps::ship_file(const string& file_path, const string& rsync_target) con
                                             (file_path)
                                             (rsync_target);
 
-  return run_command("rsync", rsync_wet_run).first == 0;
+  return do_rsync(rsync_wet_run).first == 0;
 }
