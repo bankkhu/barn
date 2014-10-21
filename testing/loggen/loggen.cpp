@@ -1,3 +1,5 @@
+#include "stdio.h"
+
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -31,7 +33,7 @@ void sleep_fraction(float fraction_of_second) {
 int main(int argc, char* argv[]) {
 
   if(argc < 2) {
-    cout << "Usage: randomshit MB_OF_SHIT_TO_PRODUCE_PER_SEC" << endl;
+    cerr << "Usage: loggen MB_OF_LOGS_TO_PRODUCE_PER_SEC" << endl;
     exit(0);
   }
   const int max_len = 500;
@@ -39,20 +41,23 @@ int main(int argc, char* argv[]) {
   int len = 0;
   double mb = atof(argv[1]);
 
-  cerr << "Writing " << mb << " MB of random lines to stdout per sec" << endl;
+  cout << "Writing " << mb << " MB of random lines to stdout per sec" << endl;
 
+
+  unsigned long seq_num = 0;
+  int max_bytes = int(mb * 1024 * 1024);
 
   while(true) {
     const clock_t begin_time = clock();
 
-    int max_bytes = int(mb * 1024 * 1024);
     int made_bytes = 0;
 
     while(made_bytes <= max_bytes) {
       len = rand() % (max_len - 1);
       gen_random(buffer, len);
-      made_bytes += len + 1;
+      printf("%10lu ", seq_num++);
       cout << buffer << "\n";
+      made_bytes += len + 12;
     }
 
     const clock_t end_time = clock();
