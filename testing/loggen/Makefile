@@ -1,9 +1,11 @@
 .PHONY: build clean dist
 VERSION := 0.0.3
 
+TAR := loggen-$(VERSION)-linux-amd64.tar.gz
+
 build : loggen
 
-dist : build
+dist : build $(TAR)
 
 loggen : loggen.cpp
 	(g++ -o loggen *.cpp)
@@ -22,6 +24,10 @@ deb :
 			-a all \
 			-n loggen \
 			./usr/local/bin/loggen
+
+$(TAR):
+	@echo "Building loggen .tar.gz..."
+	tar -czf $@ loggen
 
 fpm :
 	@echo "Checking for fpm gem..."

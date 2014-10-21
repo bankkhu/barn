@@ -3,10 +3,10 @@
 
 .PHONY: build clean dist canary fpm test
 
-VERSION := 0.6.42
+VERSION := 0.6.65
 DEB := barn-agent_$(VERSION)_all.deb
 TAR := barn-agent-$(VERSION)-linux-amd64.tar.gz
-CANARY := barn-agent-canary_$(VERSION)_all.deb
+CANARY := barn-agent-canary-$(VERSION)-linux-amd64.tar.gz
 
 default : test
 
@@ -16,9 +16,9 @@ build :
 test : build
 	./test/barn_test
 
-dist : build $(DEB) $(TAR)
+dist : test $(DEB) $(TAR)
 
-canary : build $(CANARY)
+canary : test $(CANARY)
 
 clean :
 	scons -c
@@ -46,20 +46,10 @@ $(TAR):
 	tar -czf $@ barn-agent
 
 $(CANARY) :
-	@echo "Building agent canary .deb..."
+	@echo "Building agent canary .tar.gz..."
 	mkdir -p build/usr/local/bin/
-	cp barn-agent build/usr/local/bin/barn-agent-canary
-	$(MAKE) fpm
-	fpm -C build \
-			-s dir -t deb \
-			-v $(VERSION) \
-			-a all \
-			-n barn-agent-canary \
-			-d bash \
-			-d rsync \
-			-d inotify-tools \
-			-d ganglia-monitor \
-			./usr/local/bin/barn-agent-canary
+	cp barn-agent barn-agent-canary
+	tar -czf $@ barn-agent-canary
 
 fpm :
 	@echo "Checking for fpm gem..."
