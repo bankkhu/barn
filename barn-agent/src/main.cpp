@@ -22,6 +22,9 @@ int main(int argc, char* argv[]) {
  // it propagates the SIGTERM signal.
  enable_kill_child_signal_handler();
 
+ // seed rand
+ srand(std::hash<std::string>{}(barn_conf.service_name) + time(0));
+
  /*
   * Barn-agent runs in two modes. Monitor mode listens
   * on a UDP port for statistics coming from barn-agents

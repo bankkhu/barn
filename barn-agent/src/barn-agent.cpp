@@ -198,8 +198,13 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 }
 
 void sleep_it(const BarnConf& barn_conf)  {
-  LOG (INFO) << "Sleeping for " << barn_conf.sleep_seconds << " seconds...";
-  sleep(barn_conf.sleep_seconds);
+  // Introduce randomness to stop barn-agents on the same host getting
+  // in sync.
+  if (barn_conf.sleep_seconds > 0) {
+    int sleep_seconds = barn_conf.sleep_seconds/2 + (rand() % barn_conf.sleep_seconds);
+    LOG (INFO) << "Sleeping for " << sleep_seconds << " seconds...";
+    sleep(sleep_seconds);
+  }
 }
 
 // Setup primary and optionally backup ChannelSelector from configuration.
