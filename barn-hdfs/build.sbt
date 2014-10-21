@@ -75,7 +75,7 @@ publishArtifact in (Compile, packageSrc) := false
 addArtifact(Artifact("barn-hdfs", "zip", "zip"), packageDist)
 
 publishTo <<= version { (v: String) =>
-  val sc = "http://maven.int.s-cloud.net/content/repositories"
+  val sc = "http://maven.int.s-cloud.net/content/repositories/"
   if (v.trim.endsWith("SNAPSHOT"))
     Some("snapshots" at sc + "snapshots")
   else
