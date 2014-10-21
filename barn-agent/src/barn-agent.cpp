@@ -36,6 +36,7 @@ void barn_agent_main(const BarnConf& barn_conf) {
 
   while(true) {
     dispatch_new_logs(barn_conf, fileops, *channel_selector, *metrics);
+    channel_selector->send_metrics(*metrics);
   }
 
   delete channel_selector;
@@ -51,6 +52,8 @@ void dispatch_new_logs(const BarnConf& barn_conf,
                        const Metrics& metrics) {
   AgentChannel channel = channel_selector.pick_channel();
 
+  // TODO: we could consider retaining the last shipped file. That
+  // would save a lot of requerying to the destination server each time.
   auto logs_to_ship = query_candidates(fileops, channel, metrics);
 
   if (isFailure(logs_to_ship)) {
@@ -172,7 +175,6 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
     } else
         num_shipped++;
   }
-  // TODO: Perhaps add shipping time metrics exposed.
   if (num_shipped < candidates_size) {
     LOG (WARNING) << "failed to ship " << (candidates_size-num_shipped) << " files";
   }

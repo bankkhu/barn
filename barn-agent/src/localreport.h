@@ -14,6 +14,8 @@ const std::string FullDirectoryShip  ("barn_shipping_entire_log_directory");
 const std::string RotatedDuringShip  ("barn_rotated_during_ship");
 const std::string LostDuringShip     ("barn_lost_during_ship");
 const std::string NumFilesShipped    ("barn_files_shipped");
+const std::string TimeSinceSuccess   ("time_since_success");
+const std::string FailedOverAgents   ("failed_over_agents");
 
 //These metrics will be published as zero if not occured
 const std::vector<std::string> DefaultZeroMetrics =
@@ -22,7 +24,9 @@ const std::vector<std::string> DefaultZeroMetrics =
                         (FullDirectoryShip)
                         (RotatedDuringShip)
                         (NumFilesShipped)
-                        (LostDuringShip);
+                        (LostDuringShip)
+                        (FullDirectoryShip)
+                        (FailedOverAgents);
 
 /*
  * Used by barn-agent to emit telemetry.

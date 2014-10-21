@@ -1,6 +1,7 @@
 #ifndef CHANNEL_SELECTOR_H
 #define CHANNEL_SELECTOR_H
 
+#include "localreport.h"
 #include "params.h"
 
 
@@ -9,6 +10,7 @@ public:
   virtual void heartbeat() = 0;
   virtual T pick_channel() = 0;
   virtual T current() const = 0;
+  virtual void send_metrics(const Metrics&) const {}
 
   virtual ~ChannelSelector() {};
 };
@@ -16,11 +18,11 @@ public:
 template <class T> class SingleChannelSelector : public ChannelSelector<T> {
 public:
   SingleChannelSelector(T channel):
-        channel(channel) {};
+        channel(channel) {}
 
-  virtual void heartbeat() override {};
-  virtual T pick_channel() override { return channel; };
-  virtual T current() const override { return channel; };
+  virtual void heartbeat() override {}
+  virtual T pick_channel() override { return channel; }
+  virtual T current() const override { return channel; }
 
 private:
   T channel;
@@ -55,13 +57,19 @@ public:
       assert(seconds_before_failover > 0);
       primary_ok = true;
       last_heartbeat_time = now_in_seconds();
-   };
+   }
 
   virtual T current() const override {
     if (primary_ok)
         return primary;
     else
         return secondary;
+  }
+
+  virtual void send_metrics(const Metrics& m) const override {
+    m.send_metric(TimeSinceSuccess, now_in_seconds() - last_heartbeat_time);
+    if (!primary_ok)
+        m.send_metric(FailedOverAgents, 1);
   }
 
   virtual void heartbeat() override {
