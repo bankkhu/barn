@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name := "barn-hdfs"
 
-version := "0.1.37"
+version := "0.1.38"
 
 organization := "com.soundcloud"
 
