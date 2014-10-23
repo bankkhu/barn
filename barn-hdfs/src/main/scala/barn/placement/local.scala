@@ -14,8 +14,8 @@ trait LocalPlacementStrategy
 
   def decodeServiceInfo(serviceDir: Dir)
   : Either[BarnError, LocalServiceInfo]
-  = serviceDir.getName.split(delim) match {
-    case Array(service, category, host) =>
+  = serviceDir.getName.split(delim).toSeq match {
+    case Seq(service, category, host) =>
       Right(LocalServiceInfo(service, host))
     case _ => Left(InvalidNameFormat("Failed to extract service info for " + serviceDir))
   }

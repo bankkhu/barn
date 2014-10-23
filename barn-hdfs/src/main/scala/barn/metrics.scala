@@ -29,7 +29,7 @@ object Metrics {
   object SyncMetrics {
 
     import io.prometheus.client.{ Prometheus, Register }
-    import io.prometheus.client.metrics.{ Counter, Gauge, Summary }
+    import io.prometheus.client.metrics.{ Counter, Gauge }
     import org.joda.time.DateTime
 
     val BARN         = "barn"
@@ -68,18 +68,13 @@ object Metrics {
              .build
 
     @Register
-    val loopDurationSummary =
-      Summary.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("loop_duration")
-             .documentation("A histogram of total sync loop durations in ms.")
-             .targetQuantile(0.01, 0.05)
-             .targetQuantile(0.05, 0.05)
-             .targetQuantile(0.5, 0.05)
-             .targetQuantile(0.9, 0.01)
-             .targetQuantile(0.99, 0.001)
-             .build
+    val loopDurationGauge =
+      Gauge.newBuilder
+           .namespace(BARN)
+           .subsystem(BARN_HDFS)
+           .name("loop_duration")
+           .documentation("The duration of the last sync loop in ms.")
+           .build
 
 
     @Register
@@ -93,18 +88,13 @@ object Metrics {
              .build
 
     @Register
-    val syncDurationSummary =
-      Summary.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("sync_duration")
-             .documentation("A histogram of directory sync durations in ms.")
-             .targetQuantile(0.01, 0.05)
-             .targetQuantile(0.05, 0.05)
-             .targetQuantile(0.5, 0.05)
-             .targetQuantile(0.9, 0.01)
-             .targetQuantile(0.99, 0.001)
-             .build
+    val syncDurationGauge =
+      Gauge.newBuilder
+           .namespace(BARN)
+           .subsystem(BARN_HDFS)
+           .name("sync_duration")
+           .documentation("The duration of the last directory sync in ms.")
+           .build
 
     @Register
     val readyFilesGauge =
@@ -159,49 +149,34 @@ object Metrics {
              .build
 
     @Register
-    val concatDurationSummary =
-      Summary.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("concat_duration")
-             .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
-             .documentation("A histogram of durations for local concatenations.")
-             .targetQuantile(0.01, 0.05)
-             .targetQuantile(0.05, 0.05)
-             .targetQuantile(0.5, 0.05)
-             .targetQuantile(0.9, 0.01)
-             .targetQuantile(0.99, 0.001)
-             .build
+    val concatDurationGauge =
+      Gauge.newBuilder
+           .namespace(BARN)
+           .subsystem(BARN_HDFS)
+           .name("concat_duration")
+           .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
+           .documentation("The duration of the last local concatenation is ms.")
+           .build
 
     @Register
-    val concatFilesSummary =
-      Summary.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("concat_files")
-             .labelNames(SERVICE_NAME, HOST_NAME)
-             .documentation("A histogram of the number of files concatenated locally to one file.")
-             .targetQuantile(0.01, 0.05)
-             .targetQuantile(0.05, 0.05)
-             .targetQuantile(0.5, 0.05)
-             .targetQuantile(0.9, 0.01)
-             .targetQuantile(0.99, 0.001)
-             .build
+    val concatFilesGauge =
+      Gauge.newBuilder
+           .namespace(BARN)
+           .subsystem(BARN_HDFS)
+           .name("concat_files")
+           .labelNames(SERVICE_NAME, HOST_NAME)
+           .documentation("The number of files last concatenated locally to one file.")
+           .build
 
     @Register
-    val concatDataSummary =
-      Summary.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("concat_data")
-             .labelNames(SERVICE_NAME, HOST_NAME)
-             .documentation("A histogram of the number of bytes concatenated locally to one file.")
-             .targetQuantile(0.01, 0.05)
-             .targetQuantile(0.05, 0.05)
-             .targetQuantile(0.5, 0.05)
-             .targetQuantile(0.9, 0.01)
-             .targetQuantile(0.99, 0.001)
-             .build
+    val concatDataGauge =
+      Gauge.newBuilder
+           .namespace(BARN)
+           .subsystem(BARN_HDFS)
+           .name("concat_data")
+           .labelNames(SERVICE_NAME, HOST_NAME)
+           .documentation("The number of bytes last concatenated locally to one file.")
+           .build
 
     @Register
     val shipCounter =
@@ -214,19 +189,14 @@ object Metrics {
              .build
 
     @Register
-    val shipDurationSummary =
-      Summary.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("ship_duration")
-             .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
-             .documentation("A histogram of the duration of ships to HDFS.")
-             .targetQuantile(0.01, 0.05)
-             .targetQuantile(0.05, 0.05)
-             .targetQuantile(0.5, 0.05)
-             .targetQuantile(0.9, 0.01)
-             .targetQuantile(0.99, 0.001)
-             .build
+    val shipDurationGauge =
+      Gauge.newBuilder
+           .namespace(BARN)
+           .subsystem(BARN_HDFS)
+           .name("ship_duration")
+           .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
+           .documentation("A histogram of the duration of ships to HDFS.")
+           .build
 
     def setServiceCount(number: Long) : Unit = {
       serviceGauge.newPartial
@@ -243,14 +213,14 @@ object Metrics {
                  .apply
                  .increment
 
-      loopDurationSummary.newPartial
-                         .apply
-                         .observe(time)
+      loopDurationGauge.newPartial
+                       .apply
+                       .set(time)
     }
 
     def monitorSync[A](act: => Either[BarnError,A]): Either[BarnError,A] =
       time( syncCounter
-          , syncDurationSummary
+          , syncDurationGauge
           , None
           , act
           )
@@ -291,7 +261,7 @@ object Metrics {
                         (act: => Either[BarnError,A])
                         : Either[BarnError,A] =
       time( concatCounter
-          , concatDurationSummary
+          , concatDurationGauge
           , Some(serviceInfo)
           , act)
 
@@ -299,53 +269,53 @@ object Metrics {
                  , files      : Long
                  , bytes      : Long
                  ) : Unit = {
-      concatFilesSummary.newPartial
-                        .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                        .labelPair(HOST_NAME, serviceInfo.hostName)
-                        .apply
-                        .observe(files)
-      concatDataSummary.newPartial
-                       .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                       .labelPair(HOST_NAME, serviceInfo.hostName)
-                       .apply
-                       .observe(bytes)
+      concatFilesGauge.newPartial
+                      .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                      .labelPair(HOST_NAME, serviceInfo.hostName)
+                      .apply
+                      .set(files)
+      concatDataGauge.newPartial
+                     .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                     .labelPair(HOST_NAME, serviceInfo.hostName)
+                     .apply
+                     .set(bytes)
     }
 
     def monitorShip[A](serviceInfo: LocalServiceInfo)
                       (act: => Either[BarnError,A])
                       : Either[BarnError,A] =
       time( shipCounter
-          , shipDurationSummary
+          , shipDurationGauge
           , Some(serviceInfo)
           , act)
 
     private
     def time[A]( counter       : Counter
-               , summary       : Summary
+               , gauge         : Gauge
                , optServiceInfo: Option[LocalServiceInfo]
                , act: => Either[BarnError,A]): Either[BarnError,A] = {
       val start = System.currentTimeMillis
       val res   = act
       val time  = System.currentTimeMillis - start
 
-      val (counterPartial, summaryPartial) = optServiceInfo match {
-        case None       => (counter.newPartial, summary.newPartial)
+      val (counterPartial, gaugePartial) = optServiceInfo match {
+        case None       => (counter.newPartial, gauge.newPartial)
         case Some(info) =>
           ( counter.newPartial
                    .labelPair(SERVICE_NAME, info.serviceName)
                    .labelPair(HOST_NAME, info.hostName)
-          , summary.newPartial
-                   .labelPair(SERVICE_NAME, info.serviceName)
-                   .labelPair(HOST_NAME, info.hostName)
+          , gauge.newPartial
+                 .labelPair(SERVICE_NAME, info.serviceName)
+                 .labelPair(HOST_NAME, info.hostName)
           )
       }
 
       counterPartial.labelPair(RESULT, toResult(res).toString)
                     .apply
                     .increment
-      summaryPartial.labelPair(RESULT, toResult(res).toString)
-                    .apply
-                    .observe(time)
+      gaugePartial.labelPair(RESULT, toResult(res).toString)
+                  .apply
+                  .set(time)
       res
     }
   }
