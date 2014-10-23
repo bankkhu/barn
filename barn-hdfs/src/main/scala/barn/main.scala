@@ -1,5 +1,7 @@
 package barn
 
+import scala.util.Either.RightProjection
+
 import Stream.continually
 import placement._
 
@@ -10,6 +12,8 @@ import org.joda.time._
   * for looking at list of files it has received from barn-agents, comparing
   * to what is already on HDFS and transfering the difference.
   */
+
+ // TODO: report shipping per item
 object BarnHdfsWriter
   extends App
   with Logging
@@ -22,6 +26,9 @@ object BarnHdfsWriter
   with TimeUtils
   with Instruments {
 
+  import barn.Metrics.SyncMetrics
+
+
   val minMB = 1 //minimum megabytes to keep for each service!
   val maxLookBackDays = 3
   val maxReadySize = 1 * 1024 * 1024 * 1024 // 1GB
@@ -29,7 +36,7 @@ object BarnHdfsWriter
 
   // Load the barn configuration and launch the synchronization
   // routine on the set of subdirectories.
-  loadConf(args) { barnConf => {
+  loadConf(args) { barnConf => Metrics.runWebServer(barnConf.telePort) {
 
     enableGanglia(barnConf.appName
                , GangliaOpts(barnConf.gangliaHost
@@ -38,7 +45,7 @@ object BarnHdfsWriter
     enableJMX();
 
     continually(() => listSubdirectories(barnConf.localLogDir)).iterator
-      .foreach { listDirs => {
+      .foreach { listDirs => SyncMetrics.monitorLoop {
 
         info("Round of sync started.")
 
@@ -62,10 +69,12 @@ object BarnHdfsWriter
   : Unit = dirs match {
 
     case Nil =>
+      SyncMetrics.setServiceCount(0)
       info("No service has appeared in root log dir. Incorporating patience.")
       Thread.sleep(1000)
     case xs =>
 
+     SyncMetrics.setServiceCount(xs.length)
      import scala.collection.JavaConverters._
      val hdfsListCache : HdfsListCache = new HdfsListCacheJ asScala
 
@@ -94,9 +103,11 @@ object BarnHdfsWriter
    * timestamp available on HDFS.
    */
   def actOnServiceDir(barnConf: BarnConf, hdfsListCache: HdfsListCache)
-                     (serviceDir : Dir) = {
+                     (serviceDir : Dir) = reportOngoingSync {
+                                          SyncMetrics.monitorSync {
 
-    reportOngoingSync {
+    def lift[A,B](value: B): RightProjection[A,B] =
+      Right(value).right
 
     val result = for {
       serviceInfo <- decodeServiceInfo(serviceDir).right
@@ -105,10 +116,22 @@ object BarnHdfsWriter
       // Produce a List[File] of local files sorted by svlogd generated timestamp
       localFiles  <- listSortedLocalFiles(serviceDir, excludeList).right
 
-      totalReadySize <- Right(sumFileSizes(localFiles)).right
+      totalReadySize <- lift(sumFileSizes(localFiles))
+
+      _           <- lift(SyncMetrics.setReady( serviceInfo
+                                              , localFiles.size
+                                              , totalReadySize
+                                              ))
+
+      minFileDate <- earliestFileDate(localFiles).right
+
+      _           <- lift(minFileDate.map { ts =>
+                            SyncMetrics.setMinFileDate(serviceInfo, ts)
+                          }.getOrElse(()))
 
       // The earliest timestamp of local files or maxLookBack timestamp
-      lookBack    <- earliestLookbackDate(localFiles, maxLookBackDays).right
+      lookBack    <- lift(earliestLookbackDate( minFileDate
+                                              , maxLookBackDays))
 
       // Produces a shipping plan which is just a case class containing:
       // hdfsDir, hdfsTempDir, lastTaistamp
@@ -126,13 +149,21 @@ object BarnHdfsWriter
 
       // Concatenate the candidate files into a single file on the local temp directory
       concatted   <-  reportCombineTime(
-                       concatCandidates(candidates, barnConf.localTempDir)).right
+                       SyncMetrics.monitorConcat(serviceInfo) {
+                         concatCandidates( candidates
+                                         , barnConf.localTempDir
+                                         )}).right
 
-      lastTaistamp <- Right(svlogdFileNameToTaiString(candidates.last.getName)).right
+      _           <- lift(SyncMetrics.setConcat( serviceInfo
+                                               , candidates.size
+                                               , sumFileSizes(List(concatted))
+                                               ))
+
+      lastTaistamp <- lift(svlogdFileNameToTaiString(candidates.last.getName))
 
       // Generate the filename for the final HDFS destination which includes
       // a taistamp of the latest file to be combined
-      targetName_  <- Right(targetName(lastTaistamp, serviceInfo)).right
+      targetName_  <- lift(targetName(lastTaistamp, serviceInfo))
 
       // Create the target HDFS final destination directory
       _           <- ensureHdfsDir(fs, plan.hdfsDir).right
@@ -143,12 +174,12 @@ object BarnHdfsWriter
       // Write the local concatenated file to the HDFS temporary
       // directory and then perform an atomic rename of that file
       // to it's final destination
-      _           <- reportShipTime(
+      _           <- reportShipTime( SyncMetrics.monitorShip(serviceInfo) {
                       atomicShipToHdfs(fs
                                     , concatted
                                     , plan hdfsDir
                                     , targetName_
-                                    , plan hdfsTempDir)).right
+                                    , plan hdfsTempDir)}).right
 
       // Get the largest timestamp of the files to ship
       shippedTS   <- svlogdFileTimestamp(candidates last).right
@@ -168,6 +199,7 @@ object BarnHdfsWriter
 
     result.left.map(reportError("Sync of " + serviceDir + "") _)
 
+    result
     }
   }
 
@@ -179,15 +211,23 @@ object BarnHdfsWriter
     case _ => ()
   }
 
-  def earliestLookbackDate(localFiles: List[File], maxLookBackDays: Int)
-  : Either[BarnError, DateTime] = {
-    val maxLookBackTime = DateTime.now.minusDays(maxLookBackDays)
+  def earliestFileDate(localFiles: List[File])
+        : Either[BarnError, Option[DateTime]] = localFiles.headOption match {
+    case None    => Right(None)
+    case Some(f) =>
+      svlogdFileTimestamp(f) match {
+        case Right(ts) => Right(Some(ts))
+        case Left(e)   => Left(e)
+      }
+  }
 
-    localFiles.headOption match {
-      case Some(f) =>
-        svlogdFileTimestamp(f).right.map(ts =>
-          if(ts.isBefore(maxLookBackTime)) maxLookBackTime else ts)
-      case None => Right(maxLookBackTime)
+  def earliestLookbackDate( minFileDate    : Option[DateTime]
+                          , maxLookBackDays: Int) : DateTime = {
+    val maxLookBackTime = DateTime.now.minusDays(maxLookBackDays)
+    minFileDate match {
+        case None                                     => maxLookBackTime
+        case Some(ts) if ts.isBefore(maxLookBackTime) => maxLookBackTime
+        case Some(ts)                                 => ts
     }
   }
 

@@ -42,6 +42,7 @@ package object barn {
                     , shipInterval: Int
                     , gangliaHost: String
                     , gangliaPort: Int
+                    , telePort: Int
                     , appName : String = "barn-hdfs")
 
   private val lineDelim = System.getProperty("line.separator")

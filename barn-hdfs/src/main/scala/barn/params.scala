@@ -28,7 +28,9 @@ trait ParamParser
       opt("ganglia-host", "Enables and specifies ganglia host")
           {(v: String, c: BarnConf) => c.copy(gangliaHost = v)},
       intOpt("ganglia-port", "Specifies ganglia port")
-          {(v: Int, c: BarnConf) => c.copy(gangliaPort = v)}
+          {(v: Int, c: BarnConf) => c.copy(gangliaPort = v)},
+      intOpt("tele-port", "Specifies Prometheus telemetry port, defaults to 9090")
+          {(v: Int, c: BarnConf) => c.copy(telePort = v)}
     )
   }
 
@@ -47,7 +49,8 @@ trait ParamParser
                                  , 2
                                  , 3600
                                  , null
-                                 , -1)
+                                 , -1
+                                 , 9090)
 
     parser.parse(args, barnConfDefault) map { config =>
 
