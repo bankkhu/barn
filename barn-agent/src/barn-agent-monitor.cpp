@@ -61,10 +61,9 @@ void barn_agent_local_monitor_main(const BarnConf& barn_conf) {
 
   receive_reports(barn_conf.monitor_port, [&](const Report& new_report) {
     boost::mutex::scoped_lock lock(mutex);
-    metrics.push_back(kv_pair(new_report));
+    metrics.push_back(new_report);
     // cout << "Individual report received: " << new_report.serialize() << endl;
   });
-
 }
 
 map<string, int> aggregate(boost::circular_buffer<pair<string,int>> buffer) {

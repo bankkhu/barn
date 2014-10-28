@@ -17,7 +17,8 @@ const std::string NumFilesShipped    ("barn_files_shipped");
 const std::string TimeSinceSuccess   ("time_since_success");
 const std::string FailedOverAgents   ("failed_over_agents");
 
-//These metrics will be published as zero if not occured
+// These metrics will be published as zero if not reported
+// (it is necessary for ganlia that values be zeroed).
 const std::vector<std::string> DefaultZeroMetrics =
   boost::assign::list_of(FilesToShip)
                         (FailedToGetSyncList)
@@ -35,8 +36,8 @@ class Metrics {
   public:
 
   const int port;
-  const std::string service_name;
-  const std::string category;
+  const std::string service_name; // Currently unused (reporting done per machine).
+  const std::string category;     //    "
 
   Metrics(int port,
           std::string service_name,
@@ -61,29 +62,7 @@ public:
 };
 
 
-/*
- * Used by barn-monitor to receive telemtry.
- * TODO: refactor.
- */
-class Report {
-  public:
-  const std::string service_name;
-  const std::string category;
-  const std::string key;
-  const int value;
-
-  Report(std::string service_name,
-         std::string category,
-         std::string key,
-         int value)
-    : service_name(service_name),
-      category(category),
-      key(key),
-      value(value)
-  {};
-
-  static Report deserialize(const std::string& serialized);
-};
+typedef std::pair<std::string, int> Report;
 
 inline Metrics* create_metrics(const BarnConf& barn_conf) {
   if (barn_conf.monitor_port > 0) {
@@ -95,12 +74,4 @@ inline Metrics* create_metrics(const BarnConf& barn_conf) {
 }
 
 void receive_reports(int port, std::function<void(const Report&)> handler);
-
-void send_datagram(int port, std::string message);
-
-template<int buffer_size = 250>
-void receive_datagrams(int port, std::function<void(const std::string&)> handler);
-
-std::pair<std::string, int> kv_pair(const Report& report);
-
 #endif

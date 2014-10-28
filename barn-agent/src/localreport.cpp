@@ -8,36 +8,31 @@
 
 using namespace std;
 
+static void send_datagram(int port, std::string message);
+static void receive_datagrams(int port, function<void(const string&)> handler);
+
 void Metrics::send_metric(const std::string& key, int value) const {
   static const auto SERIALIZATION_DELIM = ' ';
   std::ostringstream oss;
 
-  oss << service_name << SERIALIZATION_DELIM
-      << category << SERIALIZATION_DELIM
-      << key << SERIALIZATION_DELIM
-      << value;
+  oss << key << SERIALIZATION_DELIM << value;
 
   send_datagram(port, oss.str());
 }
 
-void receive_reports(int port, function<void(const Report&)> handler) {
-  receive_datagrams(port, bind(handler, bind(Report::deserialize, _1)));
-}
-
-Report Report::deserialize(const std::string& serialized) {
+static Report deserialize(const std::string& serialized) {
   std::istringstream iss(serialized);
 
-  string service_name;
-  string category;
   string key;
   int value;
 
-  iss >> service_name
-      >> category
-      >> key
-      >> value;
+  iss >> key >> value;
 
-  return Report(service_name, category, key, value);
+  return Report(key, value);
+}
+
+void receive_reports(int port, function<void(const Report&)> handler) {
+  receive_datagrams(port, bind(handler, bind(deserialize, _1)));
 }
 
 void send_datagram(int port, std::string message) {
@@ -52,11 +47,11 @@ void send_datagram(int port, std::string message) {
   socket.send_to(boost::asio::buffer(message.c_str(), message.size()), end_point);
 }
 
-template<int buffer_size>
 void receive_datagrams(int port, function<void(const string&)> handler) {
   using namespace boost;
   using namespace boost::asio;
   using namespace boost::asio::ip;
+  static const int buffer_size = 250;
 
   io_service io_service;
   udp::socket socket(io_service, udp::endpoint(udp::v4(), port));
@@ -68,9 +63,5 @@ void receive_datagrams(int port, function<void(const string&)> handler) {
     std::string datagram(recv_buf.begin(), recv_buf.begin() + size_read);
     handler(datagram);
   }
-}
-
-std::pair<std::string, int> kv_pair(const Report& report) {
-  return std::make_pair(report.key, report.value);
 }
 
