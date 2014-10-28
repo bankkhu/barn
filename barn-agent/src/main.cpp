@@ -2,9 +2,9 @@
 #include <string>
 
 #include "barn-agent.h"
-#include "sighandle.h"
-#include "barn-agent-monitor.h"
+#include "monitor/barn-agent-monitor.h"
 #include "params.h"
+#include "sighandle.h"
 
 _INITIALIZE_EASYLOGGINGPP
 

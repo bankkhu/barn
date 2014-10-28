@@ -11,7 +11,7 @@ using namespace std;
 static void send_datagram(int port, std::string message);
 static void receive_datagrams(int port, function<void(const string&)> handler);
 
-void Metrics::send_metric(const std::string& key, int value) const {
+void LocalReport::send_metric(const std::string& key, int value) const {
   static const auto SERIALIZATION_DELIM = ' ';
   std::ostringstream oss;
 

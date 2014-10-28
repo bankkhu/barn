@@ -1,12 +1,12 @@
-#include <iostream>
 #include <vector>
-#include <algorithm>
+
+#include <boost/scoped_ptr.hpp>
 
 #include "barn-agent.h"
 #include "channel_selector.h"
 #include "files.h"
 #include "helpers.h"
-#include "localreport.h"
+#include "monitor/localreport.h"
 #include "process.h"
 #include "rsync.h"
 
@@ -18,6 +18,7 @@ static Validation<int> ship_candidates(
         const FileOps&, const AgentChannel&, const Metrics&, vector<string>);
 static Validation<FileNameList> query_candidates(const FileOps&, const AgentChannel&, const Metrics&);
 static ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf&);
+static Metrics* create_metrics(const BarnConf&);
 static void sleep_it(const BarnConf&);
 
 
@@ -29,9 +30,8 @@ static void sleep_it(const BarnConf&);
  *   - Wait for a change to the source directory using inotify
  */
 void barn_agent_main(const BarnConf& barn_conf) {
-
-  auto metrics = create_metrics(barn_conf);
-  auto channel_selector = create_channel_selector(barn_conf);
+  scoped_ptr<Metrics> metrics(create_metrics(barn_conf));
+  scoped_ptr<ChannelSelector<AgentChannel>> channel_selector(create_channel_selector(barn_conf));
   auto fileops = FileOps();
 
   while(true) {
@@ -39,8 +39,6 @@ void barn_agent_main(const BarnConf& barn_conf) {
     channel_selector->send_metrics(*metrics);
   }
 
-  delete channel_selector;
-  delete metrics;
 }
 
 
@@ -230,5 +228,13 @@ ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf& barn_conf
     backup.source_dir = barn_conf.source_dir;
     return new FailoverChannelSelector<AgentChannel>(primary, backup, barn_conf.seconds_before_failover);
   }
+}
 
+Metrics* create_metrics(const BarnConf& barn_conf) {
+  if (barn_conf.monitor_port > 0) {
+    return new LocalReport(barn_conf.monitor_port, barn_conf.service_name,
+                           barn_conf.category);
+  } else {
+    return new NoOpMetrics();
+  }
 }
