@@ -54,7 +54,7 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
       show_desc = true;
     } else if (!conf.monitor_mode && conf.monitor_port <= 0) {
       cerr << "WARN: No monitor_port specified, metrics reporting disabled" << endl;
-    } else if (conf.monitor_mode && vm["monitor_port"].empty()) {
+    } else if (conf.monitor_mode && conf.monitor_port <= 0) {
       cerr << "ERROR: option 'monitor_port' is required in monitor_mode" << endl;
       show_desc = true;
     } else if (conf.seconds_before_failover > 0 && vm["backup-addr"].empty()) {
