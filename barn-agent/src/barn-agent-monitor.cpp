@@ -5,8 +5,8 @@
 #include <boost/thread/mutex.hpp>
 
 #include "barn-agent-monitor.h"
-#include "ganglia.h"
-#include "localreport.h"
+#include "monitor/ganglia.h"
+#include "monitor/localreport.h"
 
 using namespace std;
 using boost::posix_time::seconds;
@@ -49,6 +49,9 @@ void timer_action(Timer* timer, MetricRepo* metrics, boost::mutex* repo_mutex){
   timer->async_wait(bind(timer_action, timer, metrics, repo_mutex));
 }
 
+// Listens for string-key,integer-value broadcasts over UDP and
+// aggregrates them for 30 seconds before re-broadcasting to ganglia.
+// TODO: Consider replacing with statsd
 void barn_agent_local_monitor_main(const BarnConf& barn_conf) {
 
   auto metrics = MetricRepo(max_metrics_per_interval);
