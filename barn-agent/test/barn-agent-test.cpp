@@ -94,7 +94,7 @@ class FakeMetrics : public Metrics {
 public:
   unordered_map<string, int> *sent = new unordered_map<string, int>();
 
-  FakeMetrics() : Metrics(0, "", "") {
+  FakeMetrics() : Metrics("", "") {
   };
 
   virtual void send_metric(const string& key, int value) const {

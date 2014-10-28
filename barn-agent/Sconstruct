@@ -10,7 +10,7 @@ env = Environment(LIBS = library_dependencies,
                   CCFLAGS = ['-std=c++11', '-pedantic'])
 
 # Add Boost
-env.Append(CPPPATH = ['./src/external/', os.environ.get('BOOST_LIB_PATH','')])
+env.Append(CPPPATH = ['./src/', './src/external/', os.environ.get('BOOST_LIB_PATH','')])
 env.Append(LIBPATH = [os.environ.get('BOOST_LIB_PATH','')])
 
 # Allow overriding of the default compiler
@@ -30,8 +30,9 @@ release_env.Append(CCFLAGS = ['-O2'])
 release_env.Append(CCFLAGS = ['-Wall'])
 
 barn_agent_sources = Glob('./src/[!main]*.cpp')
+barn_monitor_sources = Glob('./src/monitor/*.cpp')
 
-release_env.Program('barn-agent', ['src/main.cpp'] + barn_agent_sources)
+release_env.Program('barn-agent', ['src/main.cpp'] + barn_agent_sources + barn_monitor_sources)
 
 
 # Testing
@@ -55,6 +56,6 @@ test_env.Library('test/gtest', ['test/gtest-1.7.0/src/gtest-all.cc'])
 barn_test = test_env.Program('test/barn_test', Glob('./test/*.cpp'))
 
 # Put all non-test source files in a lib for testing (avoids scons 'two environments' errors).
-barn_agent_lib = release_env.Library('test/barnagent_sources', barn_agent_sources)
+barn_agent_lib = release_env.Library('test/barnagent_sources', barn_agent_sources + barn_monitor_sources)
 Depends(barn_test, barn_agent_lib)
 
