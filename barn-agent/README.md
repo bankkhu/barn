@@ -1,8 +1,14 @@
 Barn Agent
 --------
 
-Barn Agent, runs as a part of Barn logging pipeline. It monitors directories containing
-rotating log files and upon rotation of a new log file, it ships the file to the Barn Master. 
+Barn Agent, the part of the Barn logging pipeline that ships logs from application
+machines to the barn-hdfs nodes for coalescing.
+
+Acts as a linker between svlogd and rsync, responding to newly rotated svlogd
+log files and rsyncing the files to the destination node.
+
+
+#### About
 
 Barn Agent is written in C++ and requires the following dependencies:
 
@@ -14,6 +20,13 @@ Barn Agent is written in C++ and requires the following dependencies:
   - Rsync (tested on 3.0.7 but should work with 3.0.x)
   - inotifywait (which I'll remove the dependency in the future by replacing with system calls)
 
+#### Modifying
+
+The easiest way to build the code and modify is to use the vagrant VM in
+//contrib/vagrant.
+
+A good place to start for understanding is src/barn-agent.cpp which shows the main
+logic of the agent.
 
 #### How to build
 
