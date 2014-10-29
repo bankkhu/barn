@@ -1,5 +1,11 @@
 #ifndef PARAMS_H
 #define PARAMS_H
+/*
+ * Command line handling.
+ * Also #include to get logging.
+ */
+
+#include <string>
 
 #define _ELPP_DISABLE_DEFAULT_CRASH_HANDLING
 #include "easylogging++.h"
@@ -20,7 +26,6 @@ struct BarnConf {
   std::string remote_rsync_namespace;  // Destination rsync module name ("barn_logs").
   std::string remote_rsync_namespace_backup;  // Destination rsync backup module name ("barn_backup_logs").
 };
-
 
 
 const BarnConf parse_command_line(int argc, char* argv[]);

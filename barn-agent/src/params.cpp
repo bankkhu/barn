@@ -1,14 +1,20 @@
+/*
+ * Command line handling.
+ */
+
 #include <iostream>
+#include <string.h>
+
+#include <boost/program_options.hpp>
 
 #include "params.h"
-#include <boost/program_options.hpp>
 
 using namespace std;
 
 namespace po = boost::program_options;
 
+/**/
 const BarnConf parse_command_line(int argc, char* argv[]) {
-
   try {
     BarnConf conf;
 
@@ -62,7 +68,7 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
       show_desc = true;
     }
 
-    if(show_desc) {
+    if (show_desc) {
         cout << desc << endl;
         cout << "e.g." << endl;
         cout << "barn-agent --source /var/log/my_service  --target-addr destination.mydc.com:9090 --service-name my_service --category main --monitor_port 4444" << endl;
@@ -76,7 +82,6 @@ const BarnConf parse_command_line(int argc, char* argv[]) {
     }
 
     return conf;
-
   } catch(exception& e) {
     cerr << "error: " << e.what() << "\n";
     exit(1);

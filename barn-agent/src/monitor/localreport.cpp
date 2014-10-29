@@ -1,10 +1,11 @@
-#include "localreport.h"
+#include <sstream>
+#include <string>
 
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
-#include <boost/array.hpp>
-#include <sstream>
 #include <boost/bind.hpp>
+
+#include "localreport.h"
 
 using namespace std;
 
@@ -58,7 +59,7 @@ void receive_datagrams(int port, function<void(const string&)> handler) {
   boost::array<char, buffer_size> recv_buf;
   udp::endpoint remote_endpoint;
 
-  while(true) {
+  while (true) {
     auto size_read = socket.receive_from(buffer(recv_buf), remote_endpoint);
     std::string datagram(recv_buf.begin(), recv_buf.begin() + size_read);
     handler(datagram);

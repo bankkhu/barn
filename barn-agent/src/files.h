@@ -1,8 +1,12 @@
 #ifndef FILES_H
 #define FILES_H
+/*
+ * FileOps class and filesystem related functions.
+ */
 
 #include <string>
 #include <vector>
+
 #include <boost/assign/list_of.hpp>
 #include <boost/filesystem/operations.hpp>
 
@@ -15,14 +19,12 @@
 // cause barn-agent to stop shipping from that directory.
 #define EMERGENCY_STOP_FILENAME "STOP_SHIPPING"
 
-bool file_exists(std::string path);
-
-// Class for file related operations.
-// TODO: mix of rsync operations and filesystem operations here,
-//   could split them up. For now it's a bit excessive to have too
-//   many objects.
+/*
+ * Class for file related operations including remote (rsync) file ops.
+ * Mix of rsync operations and filesystem operations could be split up. For
+ * now it's a bit excessive to have too many objects.
+ */
 class FileOps {
-
 public:
   virtual bool wait_for_new_file_in_directory(const std::string& directory,
                                               int sleep_seconds) const;
@@ -43,14 +45,21 @@ public:
                         const std::string& rsync_target) const;
 };
 
+bool file_exists(std::string path);
+
+// TODO: perhaps use boost filesystem for all this path/file stuff.
 inline std::string join_path(const std::string& dir, const std::string& file) {
-    if(dir.size() > 0 && dir.back() != '/')
+    if (dir.size() > 0 && dir.back() != '/')
         return dir + std::string("/") + file;
     else
         return dir + file;
 }
 
-inline std::vector<std::string> join_path(const std::string& dir, const std::vector<std::string>& files) {
+/*
+ * Returns 'dir' prepended to all file names in 'files'.
+ */
+inline std::vector<std::string> join_path(
+        const std::string& dir, const std::vector<std::string>& files) {
   std::vector <std::string> result;
   result.resize(files.size());
   std::transform(

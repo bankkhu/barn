@@ -1,3 +1,9 @@
+/*
+ * Main logic of barn-agent. See 'barn_agent_main' for details.
+ */
+
+#include <algorithm>
+#include <string>
 #include <vector>
 
 #include <boost/scoped_ptr.hpp>
@@ -16,7 +22,8 @@ using namespace boost;
 
 static Validation<int> ship_candidates(
         const FileOps&, const AgentChannel&, const Metrics&, vector<string>);
-static Validation<FileNameList> query_candidates(const FileOps&, const AgentChannel&, const Metrics&);
+static Validation<FileNameList> query_candidates(
+        const FileOps&, const AgentChannel&, const Metrics&);
 static ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf&);
 static Metrics* create_metrics(const BarnConf&);
 static void sleep_it(const BarnConf&);
@@ -34,16 +41,17 @@ void barn_agent_main(const BarnConf& barn_conf) {
   scoped_ptr<ChannelSelector<AgentChannel>> channel_selector(create_channel_selector(barn_conf));
   auto fileops = FileOps();
 
-  while(true) {
+  while (true) {
     dispatch_new_logs(barn_conf, fileops, *channel_selector, *metrics);
     channel_selector->send_metrics(*metrics);
   }
-
 }
 
 
-// A single iteration of barn-agent.
-// Work out what logs to ship, ship them, wait.
+/*
+ * A single iteration of barn-agent.
+ * Work out what logs to ship, ship them, wait.
+ */
 void dispatch_new_logs(const BarnConf& barn_conf,
                        const FileOps &fileops,
                        ChannelSelector<AgentChannel>& channel_selector,
@@ -55,7 +63,7 @@ void dispatch_new_logs(const BarnConf& barn_conf,
   auto logs_to_ship = query_candidates(fileops, channel, metrics);
 
   if (isFailure(logs_to_ship)) {
-    LOG (ERROR) << "Syncing Error to " << channel.rsync_target <<
+    LOG(ERROR) << "Syncing Error to " << channel.rsync_target <<
                    ":" << error(logs_to_ship);
     sleep_it(barn_conf);
     return;
@@ -64,7 +72,7 @@ void dispatch_new_logs(const BarnConf& barn_conf,
   auto num_shipped = ship_candidates(fileops, channel, metrics, get(logs_to_ship));
 
   if (isFailure(num_shipped)) {
-    LOG (ERROR) << "ERROR: Shipment failure to " << channel.rsync_target;
+    LOG(ERROR) << "ERROR: Shipment failure to " << channel.rsync_target;
     // On error, sleep to prevent error-spins
     sleep_it(barn_conf);
     return;
@@ -78,7 +86,7 @@ void dispatch_new_logs(const BarnConf& barn_conf,
     //   as the change notifications will be waiting in the inotify fd
     sleep_it(barn_conf);
   } else {
-    LOG (INFO) << "Waiting for directory change...";
+    LOG(INFO) << "Waiting for directory change...";
     fileops.wait_for_new_file_in_directory(
           channel.source_dir, barn_conf.sleep_seconds);
   }
@@ -106,7 +114,7 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
         channel.source_dir, existing_files,
         channel.rsync_target);
 
-  BarnError *err = boost::get<BarnError>(&files_not_on_server); 
+  BarnError *err = boost::get<BarnError>(&files_not_on_server);
   if (err != 0) {
     metrics.send_metric(FailedToGetSyncList, 1);
     return *err;
@@ -115,22 +123,24 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
   if (existing_files.size() == 0)
     return FileNameList();
 
-  /* Given that a client is retaining arbitrarily long history of files
-   * this tries to detect which files are already on the server, and only
-   * syncs the ones that are timestamped later than the most recent file
-   * on the server. This is done by deducing the gap between what's existing
-   * locally and what's missing on the server. Example:
-   *
-   *  local:  {t1, t2, t3, t4, t5, t6}
-   *  sync candidates: {t1, t2, t5, t6}
-   *  remote: {t3, t4}                 // deduced from sync candidates
-   *  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
-   */
+  // Given that a client is retaining arbitrarily long history of files
+  // this tries to detect which files are already on the server, and only
+  // syncs the ones that are timestamped later than the most recent file
+  // on the server. This is done by deducing the gap between what's existing
+  // locally and what's missing on the server. Example:
+  // 
+  //  local:  {t1, t2, t3, t4, t5, t6}
+  //  sync candidates: {t1, t2, t5, t6}
+  //  remote: {t3, t4}                 // deduced from sync candidates
+  //  we'll ship: {t5, t6} since {t1, t2} are less than the what's on the server {t3, t4}
+  //
   FileNameList logs_to_ship = tail_intersection(existing_files, get(files_not_on_server));
   metrics.send_metric(FilesToShip, logs_to_ship.size());
-  LOG (INFO) << "Querying " << channel.source_dir << " with " << existing_files.size() << " log files: " << logs_to_ship.size() << " log files to ship";
+  LOG(INFO) << "Querying " << channel.source_dir
+            << " with " << existing_files.size()
+            << " log files: " << logs_to_ship.size() << " log files to ship";
   if (logs_to_ship.size() == existing_files.size()) {
-    LOG (WARNING) << "Warning about to ship all log files from " << channel.source_dir;
+    LOG(WARNING) << "Warning about to ship all log files from " << channel.source_dir;
     metrics.send_metric(FullDirectoryShip, 1);
   }
   return logs_to_ship;
@@ -142,42 +152,42 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
  * Returns number of files from candidates that have managed to be shipped
  * or BarnError if no files could be shipped.
  */
- Validation<int> ship_candidates(
+Validation<int> ship_candidates(
         const FileOps& fileops, const AgentChannel& channel,
         const Metrics& metrics, vector<string> candidates) {
-
   const int candidates_size = candidates.size();
-  if(!candidates_size) {
+  if (!candidates_size) {
     return 0;
   }
-  LOG (INFO) << "Shipping : " << candidates_size << " files";
+  LOG(INFO) << "Shipping : " << candidates_size << " files";
   sort(candidates.begin(), candidates.end());
 
   auto num_lost_during_ship(0);
   auto num_shipped(0);
 
-  for(const string& el : candidates) {
+  for (const string& el : candidates) {
     const auto file_path = join_path(channel.source_dir, el);
-    LOG (INFO) << "Rsyncing " << file_path << " to " << channel.rsync_target;
+    LOG(INFO) << "Rsyncing " << file_path << " to " << channel.rsync_target;
 
     if (!fileops.ship_file(file_path, channel.rsync_target)) {
-      LOG (WARNING) << "Rsync failed to transfer log file " << file_path;
+      LOG(WARNING) << "Rsync failed to transfer log file " << file_path;
 
-      if(!fileops.file_exists(file_path)) {
-        LOG (ERROR) << "Lost data! Couldn't ship log since it got rotated in the meantime";
+      if (!fileops.file_exists(file_path)) {
+        LOG(ERROR) << "Lost data! Couldn't ship log since it got rotated in the meantime";
         num_lost_during_ship += 1;
       } else {
         // Failed to ship, but file still exists, stop and retry in next iteration
         break;
       }
-    } else
+    } else {
         num_shipped++;
+    }
   }
   if (num_shipped < candidates_size) {
-    LOG (WARNING) << "failed to ship " << (candidates_size-num_shipped) << " files";
+    LOG(WARNING) << "failed to ship " << (candidates_size-num_shipped) << " files";
   }
   if (num_shipped > 0) {
-    LOG (INFO) << "successfully shipped " << num_shipped << " files";
+    LOG(INFO) << "successfully shipped " << num_shipped << " files";
   }
   metrics.send_metric(NumFilesShipped, num_shipped);
 
@@ -185,9 +195,9 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
 
   int num_rotated_during_ship(0);
 
-  if((num_rotated_during_ship =
-      count_missing(candidates, fileops.list_log_directory(channel.source_dir))) != 0) {
-    LOG (WARNING) << "We're producing logs faster than shipping (" << num_rotated_during_ship << ").";
+  auto current_logs = fileops.list_log_directory(channel.source_dir);
+  if ((num_rotated_during_ship = count_missing(candidates, current_logs)) != 0) {
+    LOG(WARNING) << "We're producing logs faster than shipping (" << num_rotated_during_ship << ").";
     metrics.send_metric(RotatedDuringShip, num_rotated_during_ship);
   }
 
@@ -195,19 +205,25 @@ Validation<FileNameList> query_candidates(const FileOps& fileops, const AgentCha
   return num_shipped;
 }
 
+/*
+ * Sleep for a random period of time.
+ * As we cannot put a fair scheduler on rsync, we simulate one here by just
+ * making the agents play nice and give up the shared resource (in this case the
+ * destination filesystem) for a period.
+ */
 void sleep_it(const BarnConf& barn_conf)  {
-  // Introduce randomness to stop barn-agents on the same host getting
-  // in sync.
+  // Random sleep to stop barn-agents on the same host getting in sync.
   if (barn_conf.sleep_seconds > 0) {
     int sleep_seconds = barn_conf.sleep_seconds/2 + (rand() % barn_conf.sleep_seconds);
-    LOG (INFO) << "Sleeping for " << sleep_seconds << " seconds...";
+    LOG(INFO) << "Sleeping for " << sleep_seconds << " seconds...";
     sleep(sleep_seconds);
   }
 }
 
-// Setup primary and optionally backup ChannelSelector from configuration.
+/*
+ * Setup primary and optionally backup ChannelSelector from configuration.
+ */
 ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf& barn_conf) {
-
   AgentChannel primary;
   primary.rsync_target = get_rsync_target(
         barn_conf.primary_rsync_addr,
@@ -226,10 +242,14 @@ ChannelSelector<AgentChannel>* create_channel_selector(const BarnConf& barn_conf
           barn_conf.service_name,
           barn_conf.category);
     backup.source_dir = barn_conf.source_dir;
-    return new FailoverChannelSelector<AgentChannel>(primary, backup, barn_conf.seconds_before_failover);
+    return new FailoverChannelSelector<AgentChannel>(
+                    primary, backup, barn_conf.seconds_before_failover);
   }
 }
 
+/*
+ * Setup sending metrics to barn-agent-monitor if configured.
+ */
 Metrics* create_metrics(const BarnConf& barn_conf) {
   if (barn_conf.monitor_port > 0) {
     return new LocalReport(barn_conf.monitor_port, barn_conf.service_name,

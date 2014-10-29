@@ -1,8 +1,14 @@
-#include "rsync.h"
-#include "helpers.h"
-#include <vector>
-#include <string>
+/*
+ * Wrappers around running the rsync command line program.
+ */
+
 #include <algorithm>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "helpers.h"
+#include "rsync.h"
 #include "process.h"
 
 using namespace std;
@@ -18,12 +24,19 @@ static const std::string rsync_executable_name = "rsync";
 static const std::string rsync_protocol = "rsync://";
 static const std::string rsync_dry_run_flag = "--dry-run";
 
- // timeout to prevent half-open rsync connections.
- // verbose as we use the rsync output to find out about outstanding files. yuck.
- // times to preserve mod times on server (a sync optimisation)
+// timeout to prevent half-open rsync connections.
+// verbose as we use the rsync output to find out about outstanding files. yuck.
+// times to preserve mod times on server (a sync optimisation)
 static const auto RSYNC_FLAGS = boost::assign::list_of<std::string>
         ("--times")("--verbose")("--timeout=30");
 
+/*
+ * Generate an rsync destination address from the given input.
+ * Output would for example be of the form...
+ *   rsync://134.170.185.46:5555/barn_logs/myapp@main@myapp_host.mydomain.com
+ * ...with everything up the last '/' being rsync specific and the end filename
+ * being specific to barn-hdfs which will parse out the name from it.
+ */
 const std::string get_rsync_target(
     const string& destination_host_addr,
     const string& remote_rsync_namespace,
@@ -39,40 +52,46 @@ const std::string get_rsync_target(
        + TOKEN_SEPARATOR + host_name + RSYNC_PATH_SEPARATOR;
 }
 
-// Run 'rsync' command, retry if there is a network failure
-// (e.g. too many connections on the server side).
+/*
+ * Run 'rsync' command, retry if there is a network failure
+ * (e.g. too many connections on the server side).
+ */
 static const pair<int, string> do_rsync(const vector<string>& args) {
   pair<int, string> rsync_output;
   for (int tri = 0; tri <= RSYNC_NUM_RETRIES; tri++) {
     rsync_output = run_command("rsync", args);
     if (rsync_output.first != CLIENT_SERVER_PROTOCOL) {
         return rsync_output;
-    } else if(tri<=RSYNC_NUM_RETRIES) {
+    } else if (tri <= RSYNC_NUM_RETRIES) {
       LOG(WARNING) << "rsync protocol failure, retrying...";
     }
   }
   return rsync_output;
 }
 
-// Returns the list of logs (files beginning with '@') that need to
-// be transferred.
+/*
+ * Returns the list of logs (files beginning with '@') that need to
+ * be transferred.
+ */
 static const vector<string> get_rsync_candidates(string rsync_output) {
   const auto lines = split(rsync_output, '\n');
   vector<string> svlogd_files;
 
-  for(vector<string>::const_iterator it = lines.begin(); it < lines.end(); ++it) {
-    if(is_svlogd_filename(*it)) {
+  for (vector<string>::const_iterator it = lines.begin(); it < lines.end(); ++it) {
+    if (is_svlogd_filename(*it)) {
       svlogd_files.push_back(*it);
     }
   }
   return svlogd_files;
 }
 
-// Use rsync dry run...
+/*
+ * Use rsync dry run mode to compare the local log files in log_directory
+ * with the log files in rsync_target and return what's missing.
+ */
 Validation<FileNameList> FileOps::log_files_not_on_target(
         const string& log_directory, const FileNameList& files,
         const string& rsync_target) const {
-
   if (files.size() == 0) {
     return FileNameList();
   }
@@ -88,7 +107,7 @@ Validation<FileNameList> FileOps::log_files_not_on_target(
 
   const auto rsync_output = do_rsync(rsync_dry_run);
 
-  if(rsync_output.first != 0 && rsync_output.first != PARTIAL_TRANSFER &&
+  if (rsync_output.first != 0 && rsync_output.first != PARTIAL_TRANSFER &&
      rsync_output.first != PARTIAL_TRANSFER_DUE_VANISHED_SOURCE) {
     return BarnError(string("Failed to retrieve sync list: ") + rsync_output.second);
   }
@@ -98,6 +117,12 @@ Validation<FileNameList> FileOps::log_files_not_on_target(
   return missing_files;
 }
 
+/*
+ * Rsync a single file.
+ * (No performance testing has been done to compare rsync'ing lots of files
+ * individually or shipping a bunch together. In absense of this, it makes
+ * sense to ship one by one as it makes failure recover easier)
+ */
 bool FileOps::ship_file(const string& file_path, const string& rsync_target) const {
   const auto rsync_wet_run = list_of<string>(rsync_executable_name)
                                             .range(RSYNC_FLAGS)

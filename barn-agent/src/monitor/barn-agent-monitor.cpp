@@ -1,4 +1,8 @@
+#include <map>
+#include <string>
 #include <thread>
+#include <utility>
+
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/circular_buffer.hpp>
@@ -14,23 +18,23 @@ using boost::bind;
 using boost::asio::io_service;
 
 typedef boost::asio::deadline_timer Timer;
-typedef boost::circular_buffer<pair<string,int>> MetricRepo;
+typedef boost::circular_buffer<pair<string, int>> MetricRepo;
 
-map<string, int> aggregate(boost::circular_buffer<pair<string,int>> buffer);
+map<string, int> aggregate(boost::circular_buffer<pair<string, int>> buffer);
 
-const int report_interval = 30; //seconds
+const int report_interval_seconds = 30;
 const int max_metrics_per_interval = 1000;
 
 void addDefaultMetrics(MetricRepo& metrics) {
-  for(auto& el : DefaultZeroMetrics)
+  for (auto& el : DefaultZeroMetrics)
     metrics.push_back(make_pair(el, 0));
 }
 
-void timer_action(Timer* timer, MetricRepo* metrics, boost::mutex* repo_mutex){
+void timer_action(Timer* timer, MetricRepo* metrics, boost::mutex* repo_mutex) {
   MetricRepo metrics_copy;
 
   if (metrics->full()) {
-    LOG (ERROR) << "metrics buffer full";
+    LOG(ERROR) << "metrics buffer full";
   }
 
   {
@@ -40,12 +44,12 @@ void timer_action(Timer* timer, MetricRepo* metrics, boost::mutex* repo_mutex){
     addDefaultMetrics(*metrics);
   }
 
-  for(auto &m : aggregate(metrics_copy)) {
+  for (auto &m : aggregate(metrics_copy)) {
     cout << "Reporting externally: " << m.first << " -> " << m.second << endl;
     report_ganglia(metric_group, m.first, m.second);
   }
 
-  timer->expires_at(timer->expires_at() + seconds(report_interval));
+  timer->expires_at(timer->expires_at() + seconds(report_interval_seconds));
   timer->async_wait(bind(timer_action, timer, metrics, repo_mutex));
 }
 
@@ -53,7 +57,6 @@ void timer_action(Timer* timer, MetricRepo* metrics, boost::mutex* repo_mutex){
 // aggregrates them for 30 seconds before re-broadcasting to ganglia.
 // TODO: Consider replacing with statsd
 void barn_agent_local_monitor_main(const BarnConf& barn_conf) {
-
   auto metrics = MetricRepo(max_metrics_per_interval);
   boost::mutex mutex;
 
@@ -69,10 +72,10 @@ void barn_agent_local_monitor_main(const BarnConf& barn_conf) {
   });
 }
 
-map<string, int> aggregate(boost::circular_buffer<pair<string,int>> buffer) {
-  map<string,int> aggregated;
+map<string, int> aggregate(boost::circular_buffer<pair<string, int>> buffer) {
+  map<string, int> aggregated;
 
-  for(auto element : buffer)
+  for (auto element : buffer)
     aggregated[element.first] += element.second;
 
   return aggregated;

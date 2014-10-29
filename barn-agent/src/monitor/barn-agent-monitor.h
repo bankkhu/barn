@@ -1,6 +1,8 @@
 #ifndef MONITOR_MAIN
 #define MONITOR_MAIN
 
+#include <string>
+
 #include "barn-agent.h"
 
 const std::string metric_group("barn-agent");

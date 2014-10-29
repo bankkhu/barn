@@ -1,5 +1,8 @@
 #ifndef SIGNAL_H
 #define SIGNAL_H
+/*
+ * Basic signal handling code that should really be replaced.
+ */
 
 #include <signal.h>
 

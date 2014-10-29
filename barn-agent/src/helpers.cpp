@@ -1,23 +1,30 @@
-#include "helpers.h"
+/*
+ * Some general helper/utility functions for barn-agent.
+ */
 
-#include <vector>
-#include <string>
-#include <sstream>
 #include <algorithm>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include <boost/algorithm/string.hpp>
+
+#include "helpers.h"
 
 using namespace std;
 
+/**/
 const vector<string> split(string str, char delim) {
   vector<string> tokens;
   boost::split(tokens, str, boost::is_any_of(string(1, delim)));
   return tokens;
 }
 
+/**/
 const vector<string> prepend_each(vector<string> vec, string prefix) {
   vector<string> new_vec;
 
-  for(string& el : vec)
+  for (string& el : vec)
     new_vec.push_back(prefix + el);
 
   return new_vec;
@@ -60,7 +67,7 @@ vector<string> tail_intersection(const std::vector<string>& A, const std::vector
 
   for (auto a = A.rbegin(), b = B.rbegin();
        a != A.rend() && b != B.rend();
-       ++a,++b) {
+       ++a, ++b) {
        if (*a == *b)
          result.push_back(*a);
        else

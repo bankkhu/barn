@@ -1,6 +1,9 @@
+#include <string>
+
 #include <boost/assign/list_of.hpp>
-#include <iostream>
+
 #include "ganglia.h"
+#include "params.h"
 #include "process.h"
 
 using namespace boost::assign;
@@ -15,7 +18,7 @@ bool report_ganglia(std::string group,
   try {
     auto result = run_command(gmetric_command_name,
                     list_of<string>(gmetric_command_name)
-				   ("-n")(metric)
+                    ("-n")(metric)
                                    ("-g")(group)
                                    ("-v")(to_string(value))
                                    ("-t")(int_size_flag)
@@ -23,10 +26,10 @@ bool report_ganglia(std::string group,
 
     return result.first == 0;
   } catch (std::exception& e) {
-    cout << "Exception thrown reporting to ganglia:" << e.what() << endl;
+    LOG(ERROR) << "Exception thrown reporting to ganglia:" << e.what() << endl;
     return false;
   } catch (...) {
-    cout << "Unknown exception happened when reporting to ganglia" << endl;
+    LOG(ERROR) << "Unknown exception happened when reporting to ganglia" << endl;
     return false;
   }
 }

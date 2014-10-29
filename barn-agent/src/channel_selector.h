@@ -12,17 +12,17 @@ public:
   virtual T current() const = 0;
   virtual void send_metrics(const Metrics&) const {}
 
-  virtual ~ChannelSelector() {};
+  virtual ~ChannelSelector() {}
 };
 
 template <class T> class SingleChannelSelector : public ChannelSelector<T> {
 public:
-  SingleChannelSelector(T channel):
+  explicit SingleChannelSelector(T channel):
         channel(channel) {}
 
-  virtual void heartbeat() override {}
-  virtual T pick_channel() override { return channel; }
-  virtual T current() const override { return channel; }
+  void heartbeat() override {}
+  T pick_channel() override { return channel; }
+  T current() const override { return channel; }
 
 private:
   T channel;
@@ -48,7 +48,6 @@ private:
  *             cs.heartbeat()
  */
 template <class T> class FailoverChannelSelector : public ChannelSelector<T> {
-
 public:
     FailoverChannelSelector(T primary, T secondary, int seconds_before_failover):
         primary(primary),
@@ -57,36 +56,36 @@ public:
       assert(seconds_before_failover > 0);
       primary_ok = true;
       last_heartbeat_time = now_in_seconds();
-   }
+  }
 
-  virtual T current() const override {
+  T current() const override {
     if (primary_ok)
         return primary;
     else
         return secondary;
   }
 
-  virtual void send_metrics(const Metrics& m) const override {
+  void send_metrics(const Metrics& m) const override {
     m.send_metric(TimeSinceSuccess, now_in_seconds() - last_heartbeat_time);
     if (!primary_ok)
         m.send_metric(FailedOverAgents, 1);
   }
 
-  virtual void heartbeat() override {
-    if(primary_ok) {
+  void heartbeat() override {
+    if (primary_ok) {
         last_heartbeat_time = now_in_seconds();
     }
   }
 
-  virtual T pick_channel() override {
-    time_t now = now_in_seconds(); 
+  T pick_channel() override {
+    time_t now = now_in_seconds();
     time_t time_since_heartbeat = now - last_heartbeat_time;
     if (primary_ok &&
         time_since_heartbeat < seconds_before_failover) {
       // normal case, everything ok
     } else if (primary_ok) {
       // too long, perform failover
-      LOG (ERROR) << "!!Channel: error primary down for too long, failing to backup";
+      LOG(ERROR) << "!!Channel: error primary down for too long, failing to backup";
       primary_ok = false;
       last_heartbeat_time = now;
     // TODO: set failback seconds independent of failover
@@ -94,7 +93,7 @@ public:
       // on secondary, stay there for now
     } else {
       // on secondary for long enough, try primary again
-      LOG (WARNING) << "!!Channel: trying to fail back to primary from backup";
+      LOG(WARNING) << "!!Channel: trying to fail back to primary from backup";
       primary_ok = true;
       last_heartbeat_time = now;
     }
