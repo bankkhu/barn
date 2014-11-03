@@ -66,6 +66,8 @@ public:
   }
 
   void send_metrics(const Metrics& m) const override {
+    // TODO: move this into base class ChannelSelector so it's broadcast
+    // for all implementations.
     m.send_metric(TimeSinceSuccess, now_in_seconds() - last_heartbeat_time);
     if (!primary_ok)
         m.send_metric(FailedOverAgents, 1);
