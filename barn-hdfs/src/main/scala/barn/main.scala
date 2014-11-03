@@ -104,7 +104,6 @@ object BarnHdfsWriter
    */
   def actOnServiceDir(barnConf: BarnConf, hdfsListCache: HdfsListCache)
                      (serviceDir : Dir) = reportOngoingSync {
-                                          SyncMetrics.monitorSync {
 
     def lift[A,B](value: B): RightProjection[A,B] =
       Right(value).right
@@ -118,16 +117,7 @@ object BarnHdfsWriter
 
       totalReadySize <- lift(sumFileSizes(localFiles))
 
-      _           <- lift(SyncMetrics.setReady( serviceInfo
-                                              , localFiles.size
-                                              , totalReadySize
-                                              ))
-
       minFileDate <- earliestFileDate(localFiles).right
-
-      _           <- lift(minFileDate.map { ts =>
-                            SyncMetrics.setMinFileDate(serviceInfo, ts)
-                          }.getOrElse(()))
 
       // The earliest timestamp of local files or maxLookBack timestamp
       lookBack    <- lift(earliestLookbackDate( minFileDate
@@ -149,15 +139,9 @@ object BarnHdfsWriter
 
       // Concatenate the candidate files into a single file on the local temp directory
       concatted   <-  reportCombineTime(
-                       SyncMetrics.monitorConcat(serviceInfo) {
                          concatCandidates( candidates
                                          , barnConf.localTempDir
-                                         )}).right
-
-      _           <- lift(SyncMetrics.setConcat( serviceInfo
-                                               , candidates.size
-                                               , sumFileSizes(List(concatted))
-                                               ))
+                                         )).right
 
       lastTaistamp <- lift(svlogdFileNameToTaiString(candidates.last.getName))
 
@@ -174,12 +158,12 @@ object BarnHdfsWriter
       // Write the local concatenated file to the HDFS temporary
       // directory and then perform an atomic rename of that file
       // to it's final destination
-      _           <- reportShipTime( SyncMetrics.monitorShip(serviceInfo) {
+      _           <- reportShipTime(
                       atomicShipToHdfs(fs
                                     , concatted
                                     , plan hdfsDir
                                     , targetName_
-                                    , plan hdfsTempDir)}).right
+                                    , plan hdfsTempDir)).right
 
       // Get the largest timestamp of the files to ship
       shippedTS   <- svlogdFileTimestamp(candidates last).right
@@ -200,7 +184,6 @@ object BarnHdfsWriter
     result.left.map(reportError("Sync of " + serviceDir + "") _)
 
     result
-    }
   }
 
   def reportError(context: String)(e: BarnError) = e match {
