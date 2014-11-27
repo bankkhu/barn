@@ -14,11 +14,16 @@ trait LocalPlacementStrategy
 
   def decodeServiceInfo(serviceDir: Dir)
   : Either[BarnError, LocalServiceInfo]
-  = serviceDir.getName.split(delim).toSeq match {
-    case Seq(service, category, host) =>
+  = {
+    val nameArray = serviceDir.getName.split(delim)
+      (nameArray, nameArray.toSeq) match {
+    case (_, Seq(service, category, host)) =>
+      Right(LocalServiceInfo(service, host))
+    case (Array(service, category, host), _) =>
+      info("Found problem service directory: " + serviceDir.getName)
       Right(LocalServiceInfo(service, host))
     case _ => Left(InvalidNameFormat("Failed to extract service info for " + serviceDir))
-  }
+  }}
 
   def cleanupLocal(dir: Dir,
                    cleanupLimit: DateTime,
