@@ -45,7 +45,7 @@ object BarnHdfsWriter
     enableJMX();
 
     continually(() => listSubdirectories(barnConf.localLogDir)).iterator
-      .foreach { listDirs => SyncMetrics.monitorLoop {
+      .foreach { listDirs =>
 
         info("Round of sync started.")
 
@@ -59,7 +59,6 @@ object BarnHdfsWriter
 
         info("Round of sync finished.")
       }
-    }
   }}
 
   /** This routing here is responsible for launching one
@@ -69,12 +68,10 @@ object BarnHdfsWriter
   : Unit = dirs match {
 
     case Nil =>
-      SyncMetrics.setServiceCount(0)
       info("No service has appeared in root log dir. Incorporating patience.")
       Thread.sleep(1000)
     case xs =>
 
-     SyncMetrics.setServiceCount(xs.length)
      import scala.collection.JavaConverters._
      val hdfsListCache : HdfsListCache = new HdfsListCacheJ asScala
 
@@ -116,8 +113,14 @@ object BarnHdfsWriter
       localFiles  <- listSortedLocalFiles(serviceDir, excludeList).right
 
       totalReadySize <- lift(sumFileSizes(localFiles))
+      _              <- lift(SyncMetrics.setReceived( serviceInfo
+                                                    , totalReadySize
+                                                    ))
 
       minFileDate <- earliestFileDate(localFiles).right
+      _           <- lift(minFileDate.map { ts =>
+                            SyncMetrics.setMinFileDate(serviceInfo, ts)
+                          }.getOrElse(()))
 
       // The earliest timestamp of local files or maxLookBack timestamp
       lookBack    <- lift(earliestLookbackDate( minFileDate
@@ -142,6 +145,7 @@ object BarnHdfsWriter
                          concatCandidates( candidates
                                          , barnConf.localTempDir
                                          )).right
+      totalSize    <- lift(sumFileSizes(List(concatted)))
 
       lastTaistamp <- lift(svlogdFileNameToTaiString(candidates.last.getName))
 
@@ -164,6 +168,10 @@ object BarnHdfsWriter
                                     , plan hdfsDir
                                     , targetName_
                                     , plan hdfsTempDir)).right
+
+      _           <- lift(SyncMetrics.setShipped( serviceInfo
+                                                , totalSize
+                                                ))
 
       // Get the largest timestamp of the files to ship
       shippedTS   <- svlogdFileTimestamp(candidates last).right
