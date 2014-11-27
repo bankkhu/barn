@@ -55,7 +55,7 @@ object Metrics {
            .namespace(BARN)
            .subsystem(BARN_HDFS)
            .name("received_data")
-           .labelNames(SERVICE_NAME)
+           .labelNames(SERVICE_NAME, HOST_NAME)
            .documentation("Number of bytes ready to be sync'ed.")
            .build
 
@@ -65,7 +65,7 @@ object Metrics {
            .namespace(BARN)
            .subsystem(BARN_HDFS)
            .name("ready_files_max_age")
-           .labelNames(SERVICE_NAME)
+           .labelNames(SERVICE_NAME, HOST_NAME)
            .documentation("Maximum age, in ms, of local " +
                           "ready files according to their svlogdtimestamps.")
            .build
@@ -76,7 +76,7 @@ object Metrics {
            .namespace(BARN)
            .subsystem(BARN_HDFS)
            .name("time_since_last_ship")
-           .labelNames(SERVICE_NAME)
+           .labelNames(SERVICE_NAME, HOST_NAME)
            .documentation("Age, in ms, of the last file shipped " +
                           "according to svlogdtimestamps in file names.")
            .build
@@ -86,9 +86,9 @@ object Metrics {
       Gauge.newBuilder
            .namespace(BARN)
            .subsystem(BARN_HDFS)
-           .name("concat_data")
+           .name("shipped_data")
            .labelNames(SERVICE_NAME, HOST_NAME)
-           .documentation("The number of bytes last concatenated locally to one file.")
+           .documentation("The number of bytes last shipped.")
            .build
 
     @Register
@@ -97,7 +97,7 @@ object Metrics {
              .namespace(BARN)
              .subsystem(BARN_HDFS)
              .name("ship_count")
-             .labelNames(SERVICE_NAME)
+             .labelNames(SERVICE_NAME, HOST_NAME)
              .documentation("A count of the number files created on HDFS.")
              .build
 
@@ -106,6 +106,7 @@ object Metrics {
                    ) : Unit = {
       receivedDataGauge.newPartial
                        .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                       .labelPair(HOST_NAME, serviceInfo.hostName)
                        .apply
                        .set(bytes)
     }
@@ -114,6 +115,7 @@ object Metrics {
                       , minFileDate: DateTime ) : Unit =
       maxFileAgeGauge.newPartial
                      .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                     .labelPair(HOST_NAME, serviceInfo.hostName)
                      .apply
                      .set(System.currentTimeMillis - minFileDate.getMillis)
 
@@ -121,6 +123,7 @@ object Metrics {
                        , shipDate   : DateTime ) : Unit =
       lastShipGauge.newPartial
                    .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                   .labelPair(HOST_NAME, serviceInfo.hostName)
                    .apply
                    .set(System.currentTimeMillis - shipDate.getMillis)
 
@@ -129,6 +132,7 @@ object Metrics {
                   ) : Unit = {
       shipCounter.newPartial
                  .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                 .labelPair(HOST_NAME, serviceInfo.hostName)
                  .apply
                  .increment
       shippedDataGauge.newPartial
