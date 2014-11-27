@@ -50,69 +50,12 @@ object Metrics {
     }
 
     @Register
-    val serviceGauge =
+    val receivedDataGauge =
       Gauge.newBuilder
            .namespace(BARN)
            .subsystem(BARN_HDFS)
-           .name("services")
-           .documentation("The current number of services being syc'ed.")
-           .build
-
-    @Register
-    val loopCounter =
-      Counter.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("loop_count")
-             .documentation("A counter of the total sync loops made.")
-             .build
-
-    @Register
-    val loopDurationGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("loop_duration")
-           .documentation("The duration of the last sync loop in ms.")
-           .build
-
-
-    @Register
-    val syncCounter =
-      Counter.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("sync_count")
-             .labelNames(RESULT)
-             .documentation("A counter of the total directory syncs made.")
-             .build
-
-    @Register
-    val syncDurationGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("sync_duration")
-           .documentation("The duration of the last directory sync in ms.")
-           .build
-
-    @Register
-    val readyFilesGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("ready_files")
-           .labelNames(SERVICE_NAME, HOST_NAME)
-           .documentation("Number of files ready to be sync'ed.")
-           .build
-
-    @Register
-    val readyDataGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("ready_data")
-           .labelNames(SERVICE_NAME, HOST_NAME)
+           .name("received_data")
+           .labelNames(SERVICE_NAME)
            .documentation("Number of bytes ready to be sync'ed.")
            .build
 
@@ -122,7 +65,7 @@ object Metrics {
            .namespace(BARN)
            .subsystem(BARN_HDFS)
            .name("ready_files_max_age")
-           .labelNames(SERVICE_NAME, HOST_NAME)
+           .labelNames(SERVICE_NAME)
            .documentation("Maximum age, in ms, of local " +
                           "ready files according to their svlogdtimestamps.")
            .build
@@ -133,43 +76,13 @@ object Metrics {
            .namespace(BARN)
            .subsystem(BARN_HDFS)
            .name("time_since_last_ship")
-           .labelNames(SERVICE_NAME, HOST_NAME)
+           .labelNames(SERVICE_NAME)
            .documentation("Age, in ms, of the last file shipped " +
                           "according to svlogdtimestamps in file names.")
            .build
 
     @Register
-    val concatCounter =
-      Counter.newBuilder
-             .namespace(BARN)
-             .subsystem(BARN_HDFS)
-             .name("concat_count")
-             .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
-             .documentation("A count of how many times files are concatenated together locally.")
-             .build
-
-    @Register
-    val concatDurationGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("concat_duration")
-           .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
-           .documentation("The duration of the last local concatenation is ms.")
-           .build
-
-    @Register
-    val concatFilesGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("concat_files")
-           .labelNames(SERVICE_NAME, HOST_NAME)
-           .documentation("The number of files last concatenated locally to one file.")
-           .build
-
-    @Register
-    val concatDataGauge =
+    val shippedDataGauge =
       Gauge.newBuilder
            .namespace(BARN)
            .subsystem(BARN_HDFS)
@@ -184,68 +97,23 @@ object Metrics {
              .namespace(BARN)
              .subsystem(BARN_HDFS)
              .name("ship_count")
-             .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
+             .labelNames(SERVICE_NAME)
              .documentation("A count of the number files created on HDFS.")
              .build
 
-    @Register
-    val shipDurationGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("ship_duration")
-           .labelNames(SERVICE_NAME, HOST_NAME, RESULT)
-           .documentation("A histogram of the duration of ships to HDFS.")
-           .build
-
-    def setServiceCount(number: Long) : Unit = {
-      serviceGauge.newPartial
-                  .apply
-                  .set(number)
-    }
-
-    def monitorLoop[A](act: => Unit) : Unit = {
-      val start = System.currentTimeMillis
-      val res   = act
-      val time  = System.currentTimeMillis - start
-
-      loopCounter.newPartial
-                 .apply
-                 .increment
-
-      loopDurationGauge.newPartial
+    def setReceived( serviceInfo: LocalServiceInfo
+                   , bytes      : Long
+                   ) : Unit = {
+      receivedDataGauge.newPartial
+                       .labelPair(SERVICE_NAME, serviceInfo.serviceName)
                        .apply
-                       .set(time)
-    }
-
-    def monitorSync[A](act: => Either[BarnError,A]): Either[BarnError,A] =
-      time( syncCounter
-          , syncDurationGauge
-          , None
-          , act
-          )
-
-    def setReady( serviceInfo: LocalServiceInfo
-                , files      : Long
-                , bytes      : Long
-                ) : Unit = {
-      readyFilesGauge.newPartial
-                     .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                     .labelPair(HOST_NAME, serviceInfo.hostName)
-                     .apply
-                     .set(files)
-      readyDataGauge.newPartial
-                    .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                    .labelPair(HOST_NAME, serviceInfo.hostName)
-                    .apply
-                    .set(bytes)
+                       .set(bytes)
     }
 
     def setMinFileDate( serviceInfo: LocalServiceInfo
                       , minFileDate: DateTime ) : Unit =
       maxFileAgeGauge.newPartial
                      .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                     .labelPair(HOST_NAME, serviceInfo.hostName)
                      .apply
                      .set(System.currentTimeMillis - minFileDate.getMillis)
 
@@ -253,70 +121,21 @@ object Metrics {
                        , shipDate   : DateTime ) : Unit =
       lastShipGauge.newPartial
                    .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                   .labelPair(HOST_NAME, serviceInfo.hostName)
                    .apply
                    .set(System.currentTimeMillis - shipDate.getMillis)
 
-    def monitorConcat[A](serviceInfo: LocalServiceInfo)
-                        (act: => Either[BarnError,A])
-                        : Either[BarnError,A] =
-      time( concatCounter
-          , concatDurationGauge
-          , Some(serviceInfo)
-          , act)
-
-    def setConcat( serviceInfo: LocalServiceInfo
-                 , files      : Long
-                 , bytes      : Long
-                 ) : Unit = {
-      concatFilesGauge.newPartial
+    def setShipped( serviceInfo: LocalServiceInfo
+                  , bytes      : Long
+                  ) : Unit = {
+      shipCounter.newPartial
+                 .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                 .apply
+                 .increment
+      shippedDataGauge.newPartial
                       .labelPair(SERVICE_NAME, serviceInfo.serviceName)
                       .labelPair(HOST_NAME, serviceInfo.hostName)
                       .apply
-                      .set(files)
-      concatDataGauge.newPartial
-                     .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                     .labelPair(HOST_NAME, serviceInfo.hostName)
-                     .apply
-                     .set(bytes)
-    }
-
-    def monitorShip[A](serviceInfo: LocalServiceInfo)
-                      (act: => Either[BarnError,A])
-                      : Either[BarnError,A] =
-      time( shipCounter
-          , shipDurationGauge
-          , Some(serviceInfo)
-          , act)
-
-    private
-    def time[A]( counter       : Counter
-               , gauge         : Gauge
-               , optServiceInfo: Option[LocalServiceInfo]
-               , act: => Either[BarnError,A]): Either[BarnError,A] = {
-      val start = System.currentTimeMillis
-      val res   = act
-      val time  = System.currentTimeMillis - start
-
-      val (counterPartial, gaugePartial) = optServiceInfo match {
-        case None       => (counter.newPartial, gauge.newPartial)
-        case Some(info) =>
-          ( counter.newPartial
-                   .labelPair(SERVICE_NAME, info.serviceName)
-                   .labelPair(HOST_NAME, info.hostName)
-          , gauge.newPartial
-                 .labelPair(SERVICE_NAME, info.serviceName)
-                 .labelPair(HOST_NAME, info.hostName)
-          )
-      }
-
-      counterPartial.labelPair(RESULT, toResult(res).toString)
-                    .apply
-                    .increment
-      gaugePartial.labelPair(RESULT, toResult(res).toString)
-                  .apply
-                  .set(time)
-      res
+                      .set(bytes)
     }
   }
 }
