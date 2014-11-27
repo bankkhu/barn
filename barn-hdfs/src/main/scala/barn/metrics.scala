@@ -82,14 +82,14 @@ object Metrics {
            .build
 
     @Register
-    val shippedDataGauge =
-      Gauge.newBuilder
-           .namespace(BARN)
-           .subsystem(BARN_HDFS)
-           .name("shipped_data")
-           .labelNames(SERVICE_NAME, HOST_NAME)
-           .documentation("The number of bytes last shipped.")
-           .build
+    val shippedDataCounter =
+      Counter.newBuilder
+             .namespace(BARN)
+             .subsystem(BARN_HDFS)
+             .name("shipped_data")
+             .labelNames(SERVICE_NAME, HOST_NAME)
+             .documentation("The number of bytes shipped.")
+             .build
 
     @Register
     val shipCounter =
@@ -135,11 +135,11 @@ object Metrics {
                  .labelPair(HOST_NAME, serviceInfo.hostName)
                  .apply
                  .increment
-      shippedDataGauge.newPartial
-                      .labelPair(SERVICE_NAME, serviceInfo.serviceName)
-                      .labelPair(HOST_NAME, serviceInfo.hostName)
-                      .apply
-                      .set(bytes)
+      shippedDataCounter.newPartial
+                        .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                        .labelPair(HOST_NAME, serviceInfo.hostName)
+                        .apply
+                        .increment(bytes)
     }
   }
 }
