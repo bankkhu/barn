@@ -33,8 +33,8 @@ libraryDependencies := Seq(
 , "javax.servlet"     % "javax.servlet-api"   % "3.0.1"
 , "org.eclipse.jetty" % "jetty-server"        % "8.1.7.v20120910"
 , "org.eclipse.jetty" % "jetty-servlet"       % "8.1.7.v20120910"
-, "io.prometheus"     % "client"              % "0.0.3-pb2.4.1-SNAPSHOT"
-, "io.prometheus.client.utility" % "servlet"  % "0.0.5-pb2.4.1-SNAPSHOT"
+, "io.prometheus"     % "client"              % "0.0.5"
+, "io.prometheus.client.utility" % "servlet"  % "0.0.5"
 , "com.github.scopt"  % "scopt_2.10" % "2.1.0"
 )
 
