@@ -61,7 +61,8 @@ trait Tai64 {
                       (new DateTime(1999, 1,  1, 0 , 0), 32),
                       (new DateTime(2006, 1,  1, 0 , 0), 33),
                       (new DateTime(2009, 1,  1, 0 , 0), 34),
-                      (new DateTime(2012, 7,  1, 0 , 0), 35))
+                      (new DateTime(2012, 7,  1, 0 , 0), 35),
+                      (new DateTime(2015, 7,  1, 0 , 0), 36))
 
 
 }
