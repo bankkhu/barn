@@ -223,3 +223,8 @@ short TTL and perform manual failover.
 
   * Omid Aladini <omid.aladini@gmail.com>
   * Connor Hennessy <conor@soundcloud.com>
+  * Kim Altintop [@kim](http://github.com/kim)
+  * Brendan Hay [@brendanhay](http://github.com/brendanhay)
+  * Torsten Curdt <tcurdt@vafer.org>
+
+
