@@ -12,6 +12,10 @@ object Metrics {
 
   import barn.placement.LocalServiceInfo
 
+  val pattern = """(\-[a-z0-9]*(([0-9][a-f]|[a-f][0-9])+|[0-9]{3,})[a-z0-9]*).*""".r
+  def normalizeServiceName(serviceName: String) : String = {
+    pattern.replaceAllIn(serviceName, "")
+  }
 
   def runWebServer[A](port: Int)(act: => A) : A = {
     val server = new Server(port)
@@ -105,7 +109,7 @@ object Metrics {
                    , bytes      : Long
                    ) : Unit = {
       receivedDataGauge.newPartial
-                       .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                       .labelPair(SERVICE_NAME, normalizeServiceName(serviceInfo.serviceName))
                        .apply
                        .set(bytes)
     }
@@ -113,14 +117,14 @@ object Metrics {
     def setMinFileDate( serviceInfo: LocalServiceInfo
                       , minFileDate: DateTime ) : Unit =
       maxFileAgeGauge.newPartial
-                     .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                     .labelPair(SERVICE_NAME, normalizeServiceName(serviceInfo.serviceName))
                      .apply
                      .set(System.currentTimeMillis - minFileDate.getMillis)
 
     def setLastShipDate( serviceInfo: LocalServiceInfo
                        , shipDate   : DateTime ) : Unit =
       lastShipGauge.newPartial
-                   .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                   .labelPair(SERVICE_NAME, normalizeServiceName(serviceInfo.serviceName))
                    .apply
                    .set(System.currentTimeMillis - shipDate.getMillis)
 
@@ -128,11 +132,11 @@ object Metrics {
                   , bytes      : Long
                   ) : Unit = {
       shipCounter.newPartial
-                 .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                 .labelPair(SERVICE_NAME, normalizeServiceName(serviceInfo.serviceName))
                  .apply
                  .increment
       shippedDataCounter.newPartial
-                        .labelPair(SERVICE_NAME, serviceInfo.serviceName)
+                        .labelPair(SERVICE_NAME, normalizeServiceName(serviceInfo.serviceName))
                         .apply
                         .increment(bytes)
     }
