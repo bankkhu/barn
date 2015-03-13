@@ -71,7 +71,7 @@ class HdfsPlacementSuite
         })
    }
 
-  test("Should plan to ship all files that hasn't yet been shipped.") {
+  test("Should plan to ship all files that haven't yet been shipped.") {
 
     val shippingInterval = 0
 
@@ -96,14 +96,13 @@ class HdfsPlacementSuite
                                        , targetTempDir(baseDir)
                                        , Some(lastTaistamp))
 
-
           planNextShip(fs
                      , serviceInfo
                      , 1, 2
                      , baseDir
                      , shippingInterval
                      , lastShippedDate.minusDays(1)
-                     , hdfsListCache) match {
+                     , new HdfsListCacheJ().asScala) match {
 
             case Left(e:BarnError) => false :| "Failed to plan to ship with " + e
             case Right(shippingPlan:ShippingPlan) =>
